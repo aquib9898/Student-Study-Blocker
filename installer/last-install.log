@@ -1,0 +1,48 @@
+﻿**********************
+Windows PowerShell transcript start
+Start time: 20261001174810
+Username: AQUIB\noors
+RunAs User: AQUIB\noors
+Configuration Name: 
+Machine: AQUIB (Microsoft Windows NT 10.0.26200.0)
+Host Application: C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe -NoProfile -ExecutionPolicy Bypass -File D:\Student-Study-Blocker\installer\install.ps1
+Process ID: 8312
+PSVersion: 5.1.26100.9444
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.26100.9444
+BuildVersion: 10.0.26100.9444
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+Installing Smart Study Distraction Blocker
+
+1/6  Building...
+  building the service
+
+  building the native-host
+
+  building the app
+
+
+2/6  Stopping what's running...
+  stopping the service
+  closing the app
+
+3/6  Copying to C:\Program Files\Smart Study Distraction Blocker...
+
+4/6  Registering the service...
+
+5/6  Connecting the browser extension...
+
+6/6  Shortcuts, then starting...
+
+Done. Smart Study Distraction Blocker is installed and running.
+  - The service starts by itself with Windows. No PowerShell needed any more.
+  - Open the app from the Start menu or the desktop shortcut.
+  - To update after a change, run Install.cmd again. To remove it, run Uninstall.cmd.
+**********************
+Windows PowerShell transcript end
+End time: 20261001174826
+**********************

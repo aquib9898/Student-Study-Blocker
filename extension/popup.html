@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      :root { color-scheme: light dark; }
+      body {
+        font: 13px/1.4 system-ui, sans-serif;
+        width: 260px;
+        margin: 0;
+        padding: 12px;
+      }
+      h1 { font-size: 14px; margin: 0 0 8px; }
+      .row { display: flex; justify-content: space-between; gap: 8px; margin: 4px 0; }
+      .label { opacity: 0.7; }
+      .value { font-weight: 600; text-align: right; }
+      .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; vertical-align: middle; }
+      .ok { background: #2e7d32; }
+      .bad { background: #c62828; }
+      .note { opacity: 0.6; margin-top: 8px; font-size: 11px; }
+      .channel { margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(128, 128, 128, 0.35); }
+      .channel-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 8px; }
+      .channel .note { margin-top: 6px; }
+      /* The same red as the grey-zone popup's Block channel button. */
+      button {
+        width: 100%;
+        padding: 7px 10px;
+        border: 0;
+        border-radius: 6px;
+        background: #c62828;
+        color: #fff;
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      button:hover { background: #b71c1c; }
+      button:disabled { opacity: 0.6; cursor: default; }
+    </style>
+  </head>
+  <body>
+    <h1>Smart Study Distraction Blocker</h1>
+    <div class="row">
+      <span class="label">Service</span>
+      <span class="value" id="service"><span class="dot bad"></span>checking…</span>
+    </div>
+    <div class="row">
+      <span class="label">Lock</span>
+      <span class="value" id="lock">—</span>
+    </div>
+    <div class="row">
+      <span class="label">Blocked sites</span>
+      <span class="value" id="sites">—</span>
+    </div>
+    <div class="note" id="note"></div>
+    <div class="channel" id="channel" hidden>
+      <div class="channel-name" id="channel-name" hidden></div>
+      <button id="block-channel" type="button" hidden>Block channel</button>
+      <div class="note" id="channel-note"></div>
+    </div>
+    <div class="note">Settings are in the Smart Study Distraction Blocker app.</div>
+    <script src="popup.js"></script>
+  </body>
+</html>

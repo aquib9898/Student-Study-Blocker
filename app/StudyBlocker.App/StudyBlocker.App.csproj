@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>SmartStudyDistractionBlocker</AssemblyName>
+    <RootNamespace>StudyBlocker.App</RootNamespace>
+    <!-- Task Manager and the file's properties show these. -->
+    <AssemblyTitle>Smart Study Distraction Blocker</AssemblyTitle>
+    <Product>Smart Study Distraction Blocker</Product>
+    <!-- The program's own icon (Start menu, desktop, taskbar): the emblem
+         from logo11.png on a black rounded square, see Assets/. -->
+    <ApplicationIcon>Assets\logo.ico</ApplicationIcon>
+    <!-- WPF's Windows 11 (Fluent) theme, switched on by Application.ThemeMode, is still marked experimental. -->
+    <NoWarn>$(NoWarn);WPF0001</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\logo-mark.png" />
+    <Resource Include="Assets\logo.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\service\src\StudyBlocker.Common\StudyBlocker.Common.csproj" />
+  </ItemGroup>
+
+</Project>

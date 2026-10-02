@@ -1,0 +1,9 @@
+{
+    "name":  "com.smartstudyblocker.host",
+    "description":  "Smart Study Blocker native-messaging bridge to the SYSTEM service",
+    "path":  "D:\\Student-Study-Blocker\\service\\src\\StudyBlocker.NativeHost\\bin\\Release\\net10.0\\StudyBlocker.NativeHost.exe",
+    "type":  "stdio",
+    "allowed_origins":  [
+                            "chrome-extension://dkbfaenfbikncbcgecpekmpgcemijgob/"
+                        ]
+}

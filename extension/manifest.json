@@ -1,0 +1,34 @@
+{
+  "manifest_version": 3,
+  "name": "Smart Study Distraction Blocker",
+  "version": "0.11.1",
+  "description": "Classifies YouTube videos as study or distraction, showing an in-page block screen or grey-zone popup, hides distracting page surfaces per the Declutter checklist, shows its own page for blocked sites, and talks to the Smart Study Distraction Blocker service over native messaging.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAuzQuLe5ltBG2lphdowAlPhDgpU/t9N8FxQCJFJjZkREtgee8Wo5YIe+Qvl6oLiKvhBrG5DiZ6C5ImmK7vMJdsblQhPJpPm2IW7+K6tZeLeg4QrTgksvXhs5zx7wkT2uXBuAAtmMTOWCeTeuhle9S4m7i8O7b413j0xqeSsx3VpRH/AE6+9OORhBZlltyrB0DhVDdLex2lIG1SOlqicox9ehLfNClUjhfXHE21ONJM5zrm2MtNVsXC+dKW1UdB4rOSZhxubtEw9QzrofXVsxUxgPYYuZuKTAWQsc4VM4mpkRyKaGPQCBAuuGdnrFHtuK1sRJsEUp0ffwIkYfqAz2BrwIDAQAB",
+  "minimum_chrome_version": "116",
+  "permissions": ["nativeMessaging", "storage", "tabs", "alarms", "webNavigation"],
+  "host_permissions": ["*://*.youtube.com/*"],
+  "background": { "service_worker": "background.js" },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Smart Study Distraction Blocker"
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*.youtube.com/*"],
+      "js": ["content/shorts-guard.js", "content/overlay.js", "content/youtube.js", "content/declutter.js"],
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["*://*.youtube.com/*"],
+      "js": ["content/page-bridge.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "name": "com.smartstudyblocker.test",
+  "description": "Smart Study Blocker - registry test native host",
+  "path": "D:\\Student-Study-Blocker\\test-extension\\native-host\\host.bat",
+  "type": "stdio",
+  "allowed_origins": [
+    "chrome-extension://REPLACE_WITH_EXTENSION_ID/"
+  ]
+}

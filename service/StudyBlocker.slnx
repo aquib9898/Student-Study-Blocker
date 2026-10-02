@@ -1,0 +1,16 @@
+<Solution>
+  <Folder Name="/app/">
+    <Project Path="../app/StudyBlocker.App/StudyBlocker.App.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/StudyBlocker.Common/StudyBlocker.Common.csproj" />
+    <Project Path="src/StudyBlocker.NativeHost/StudyBlocker.NativeHost.csproj" />
+    <Project Path="src/StudyBlocker.Service/StudyBlocker.Service.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/StudyBlocker.Service.Tests/StudyBlocker.Service.Tests.csproj" />
+  </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/StudyBlocker.Cli/StudyBlocker.Cli.csproj" />
+  </Folder>
+</Solution>

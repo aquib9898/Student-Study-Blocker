@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Registry Test</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      width: 320px;
+      padding: 12px;
+    }
+    h1 {
+      font-size: 14px;
+      margin: 0 0 10px;
+    }
+    button {
+      width: 100%;
+      padding: 8px;
+      margin-bottom: 8px;
+      cursor: pointer;
+    }
+    pre {
+      background: #f2f2f2;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      padding: 8px;
+      font-size: 11px;
+      white-space: pre-wrap;
+      word-break: break-all;
+      min-height: 60px;
+      max-height: 200px;
+      overflow: auto;
+    }
+    .ok { border-color: #4caf50; }
+    .error { border-color: #e53935; color: #b71c1c; }
+  </style>
+</head>
+<body>
+  <h1>Native messaging &rarr; registry test</h1>
+  <button id="writeBtn">Write test value</button>
+  <button id="readBtn">Read test value</button>
+  <pre id="status">Idle.</pre>
+  <script src="popup.js"></script>
+</body>
+</html>
