@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging.EventLog;
 using StudyBlocker.Common;
 using StudyBlocker.Service;
+using StudyBlocker.Service.AppBlocking;
 using StudyBlocker.Service.Classification;
 using StudyBlocker.Service.Policies;
 
@@ -34,6 +35,12 @@ catch (UnauthorizedAccessException)
     return 3;
 }
 
+// The installed desktop app, which blocked programs open instead (see
+// AppBlockPolicies): installed next to this service's own folder. A
+// development run has none, and blocks programs only by closing them.
+var appBlockLauncher = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "app", "SmartStudyDistractionBlocker.exe"));
+if (!File.Exists(appBlockLauncher)) appBlockLauncher = null;
+
 // The uninstaller's last step before removing the service: puts every
 // browser policy the service took over back the way it was, then exits.
 // Refused during a lock, like every other way of loosening one.
@@ -44,7 +51,7 @@ if (args.Contains("--restore-browser-policies"))
         Console.Error.WriteLine("A lock is active, so the browser policies stay until it ends.");
         return 1;
     }
-    foreach (var change in new PolicyWriter(new WindowsPolicyRegistry(), store).Apply(new LockState()).Applied)
+    foreach (var change in new PolicyWriter(new WindowsPolicyRegistry(), store, appBlockLauncher).RestoreAll())
         Console.WriteLine(change);
     return 0;
 }
@@ -60,8 +67,14 @@ builder.Services.AddSingleton<IStateStore>(store);
 builder.Services.AddSingleton(new TrustedClock());
 builder.Services.AddSingleton(new NetworkTimeSource());
 builder.Services.AddSingleton<LockStateStore>();
+builder.Services.AddSingleton(new LinkStore(store, LinkProtocol.OfferFilePath));
+builder.Services.AddSingleton<LinkService>();
 builder.Services.AddSingleton<IPolicyRegistry, WindowsPolicyRegistry>();
-builder.Services.AddSingleton<PolicyWriter>();
+builder.Services.AddSingleton(services =>
+    new PolicyWriter(services.GetRequiredService<IPolicyRegistry>(), store, appBlockLauncher));
+builder.Services.AddSingleton(new AppWatcher(
+    new WindowsProcessTable(),
+    appBlockLauncher is null ? null : new UserSessionNotice(appBlockLauncher)));
 builder.Services.AddSingleton<ClassifierStore>();
 builder.Services.AddHostedService<Worker>();
 

@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -7,6 +7,7 @@
     <Nullable>enable</Nullable>
     <AssemblyName>StudyBlocker.NativeHost</AssemblyName>
     <InvariantGlobalization>true</InvariantGlobalization>
+    <Version>0.4.4</Version>
   </PropertyGroup>
 
   <ItemGroup>

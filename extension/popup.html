@@ -36,29 +36,38 @@
       }
       button:hover { background: #b71c1c; }
       button:disabled { opacity: 0.6; cursor: default; }
+      .missing { line-height: 1.5; }
+      .missing a { display: block; margin-top: 4px; word-break: break-all; }
     </style>
   </head>
   <body>
     <h1>Smart Study Distraction Blocker</h1>
-    <div class="row">
-      <span class="label">Service</span>
-      <span class="value" id="service"><span class="dot bad"></span>checking…</span>
+    <div class="missing" id="missing" hidden>
+      <strong>Companion app not detected.</strong>
+      Please install it from:
+      <a id="install-link" target="_blank" rel="noopener noreferrer"></a>
     </div>
-    <div class="row">
-      <span class="label">Lock</span>
-      <span class="value" id="lock">—</span>
+    <div id="main">
+      <div class="row">
+        <span class="label">Service</span>
+        <span class="value" id="service"><span class="dot bad"></span>checking…</span>
+      </div>
+      <div class="row">
+        <span class="label">Lock</span>
+        <span class="value" id="lock">—</span>
+      </div>
+      <div class="row">
+        <span class="label">Blocked sites</span>
+        <span class="value" id="sites">—</span>
+      </div>
+      <div class="note" id="note"></div>
+      <div class="channel" id="channel" hidden>
+        <div class="channel-name" id="channel-name" hidden></div>
+        <button id="block-channel" type="button" hidden>Block channel</button>
+        <div class="note" id="channel-note"></div>
+      </div>
+      <div class="note">Settings are in the Smart Study Distraction Blocker app.</div>
     </div>
-    <div class="row">
-      <span class="label">Blocked sites</span>
-      <span class="value" id="sites">—</span>
-    </div>
-    <div class="note" id="note"></div>
-    <div class="channel" id="channel" hidden>
-      <div class="channel-name" id="channel-name" hidden></div>
-      <button id="block-channel" type="button" hidden>Block channel</button>
-      <div class="note" id="channel-note"></div>
-    </div>
-    <div class="note">Settings are in the Smart Study Distraction Blocker app.</div>
     <script src="popup.js"></script>
   </body>
 </html>

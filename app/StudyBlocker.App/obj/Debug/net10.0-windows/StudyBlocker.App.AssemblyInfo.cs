@@ -10,13 +10,13 @@
 using System;
 using System.Reflection;
 
-[assembly: System.Reflection.AssemblyCompanyAttribute("StudyBlocker")]
+[assembly: System.Reflection.AssemblyCompanyAttribute("SmartStudyDistractionBlocker")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
-[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
-[assembly: System.Reflection.AssemblyProductAttribute("StudyBlocker")]
-[assembly: System.Reflection.AssemblyTitleAttribute("StudyBlocker")]
-[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
+[assembly: System.Reflection.AssemblyFileVersionAttribute("0.4.2.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("0.4.2+aa1dd8a788374e04ca04d163c0033020e4404906")]
+[assembly: System.Reflection.AssemblyProductAttribute("Smart Study Distraction Blocker")]
+[assembly: System.Reflection.AssemblyTitleAttribute("Smart Study Distraction Blocker")]
+[assembly: System.Reflection.AssemblyVersionAttribute("0.4.2.0")]
 [assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
 [assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
 

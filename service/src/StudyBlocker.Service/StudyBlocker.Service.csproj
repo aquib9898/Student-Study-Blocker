@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Worker">
+﻿<Project Sdk="Microsoft.NET.Sdk.Worker">
 
   <PropertyGroup>
     <TargetFramework>net10.0-windows</TargetFramework>
@@ -8,6 +8,7 @@
     <!-- Task Manager shows this for the service's process. -->
     <AssemblyTitle>Smart Study Distraction Blocker service</AssemblyTitle>
     <Product>Smart Study Distraction Blocker</Product>
+    <Version>0.4.4</Version>
   </PropertyGroup>
 
   <ItemGroup>

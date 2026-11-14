@@ -12,4 +12,8 @@ public sealed record ServiceStatus
 
     // How long "Break lock early" keeps the lock on before it ends.
     public long BreakDelayMs { get; init; }
+
+    // The link to LockIn. No secrets in it, so anyone who can read the status
+    // can see it, which is what lets the app show its banner.
+    public LinkStatus Link { get; init; } = new();
 }

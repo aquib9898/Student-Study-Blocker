@@ -5,6 +5,10 @@ namespace StudyBlocker.Common;
 public static class IpcProtocol
 {
     public const string PipeName = "SmartStudyBlocker.Control";
+
+    // IpcRequest.From for everything the browser extension asks (set by the
+    // native-messaging host, which only the extension uses).
+    public const string FromExtension = "extension";
 }
 
 // One request and one response per pipe connection, each a single line of JSON.
@@ -12,6 +16,15 @@ public sealed record IpcRequest
 {
     public string Type { get; init; } = "";
     public JsonElement? Payload { get; init; }
+
+    // Proves the caller is the LockIn this PC is linked to (see LinkStore).
+    // Only the link requests read it; every other request ignores it.
+    public string? Secret { get; init; }
+
+    // Who relayed it: IpcProtocol.FromExtension from the native host, else
+    // null. The extension's status is what is enforced rather than the
+    // settings (they differ on a LockIn session-break). It grants nothing.
+    public string? From { get; init; }
 }
 
 public sealed record IpcResponse
@@ -30,15 +43,4 @@ public sealed record IpcResponse
 public sealed record LockRequest
 {
     public int Minutes { get; init; }
-
-    // "start-lock" only, and only meaningful before the extension is
-    // published: skips just the DevTools lockdown. Chrome and Edge bundle
-    // "disallow DevTools" together with "disallow Developer mode" on the
-    // extensions page, and an unpacked (not yet store-installed) extension
-    // stops running the instant Developer mode goes off — so the full
-    // lockdown currently disables the very extension meant to enforce the
-    // lock. A store-installed extension isn't affected by Developer mode, so
-    // this has no reason to exist once the extension is published
-    // (Milestone 0 Phase B / 9). Ignored by "extend-lock".
-    public bool DevKeepDevTools { get; init; }
 }

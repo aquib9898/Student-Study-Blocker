@@ -1,5 +1,5 @@
 {
-  "_comment": "Milestone 6: CSS selectors hidden per ticked Declutter option (plan §9). Keys match StudyBlocker.Common.DeclutterOption exactly. Pure CSS hides only — nothing here blocks navigation, so search, subscriptions, playlists and an opened video always stay reachable. YouTube's own DOM changes periodically; if a toggle stops doing anything, inspect the live page and fix the list here, not the code that reads it.",
+  "_comment": "Milestone 6: CSS selectors hidden per ticked Declutter option (plan §9). Keys match StudyBlocker.Common.DeclutterOption exactly. Pure CSS hides only — nothing here blocks navigation, so search, subscriptions, a playlist's own page and an opened video always stay reachable. YouTube's own DOM changes periodically; if a toggle stops doing anything, inspect the live page and fix the list here, not the code that reads it.",
 
   "HomeFeed": [
     "ytd-browse[page-subtype=\"home\"] ytd-rich-grid-renderer"
@@ -39,5 +39,11 @@
 
   "SubscriptionsFeed": [
     "ytd-browse[page-subtype=\"subscriptions\"] ytd-rich-grid-renderer"
+  ],
+
+  "_Playlists": "The playlist panel next to (or, in a narrow window, under) a video watched from a playlist, and the miniplayer's copy of it. The playlist's own page (/playlist?list=...) uses other elements, so it stays.",
+  "Playlists": [
+    "ytd-playlist-panel-renderer",
+    "ytd-watch-flexy #playlist"
   ]
 }

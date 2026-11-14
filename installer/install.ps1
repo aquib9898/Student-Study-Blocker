@@ -16,30 +16,75 @@
 #
 # Settings (the lock, rules, channel lists) live in C:\ProgramData and are
 # kept as they are, so a lock that's running carries on through an update.
+# So is the link to LockIn. If that link is ever lost (LockIn was reinstalled
+# and forgot its secret), -ResetLink forgets it on this side too, and the
+# service leaves a fresh pairing offer for LockIn to pick up. Only an
+# administrator can do that, which is the point of it being here.
+param([switch]$ResetLink, [string]$PrebuiltDir = "", [switch]$Quiet)
 
 . (Join-Path $PSScriptRoot "common.ps1")
-Assert-Elevated $PSCommandPath
+$forward = @()
+if ($ResetLink) { $forward += "-ResetLink" }
+if ($PrebuiltDir) { $forward += "-PrebuiltDir", $PrebuiltDir }
+if ($Quiet) { $forward += "-Quiet" }
+Assert-64Bit $PSCommandPath $forward
+Assert-Elevated $PSCommandPath $(if ($ResetLink) { @("-ResetLink") } else { @() })
 
 $ErrorActionPreference = "Stop"
-Start-Transcript -Path (Join-Path $PSScriptRoot "last-install.log") | Out-Null
+$logPath = if ($Quiet) { Join-Path $env:TEMP "SmartStudyBlocker-install.log" } else { Join-Path $PSScriptRoot "last-install.log" }
+Start-Transcript -Path $logPath | Out-Null
+$failed = $false
 try {
     Write-Host "Installing $ProductName" -ForegroundColor Cyan
 
     Write-Step "1/6  Building..."
-    $build = Join-Path $env:TEMP "SmartStudyBlocker-build"
-    & (Join-Path $PSScriptRoot "build.ps1") -OutDir $build
+    if ($PrebuiltDir) { Write-Host "  using the files that came with this installer" }
+    $build = if ($PrebuiltDir) { $PrebuiltDir } else { Join-Path $env:TEMP "SmartStudyBlocker-build" }
+    if (-not $PrebuiltDir) { & (Join-Path $PSScriptRoot "build.ps1") -OutDir $build }
 
     Write-Step "2/6  Stopping what's running..."
     Stop-Everything
 
+    if ($ResetLink) {
+        Write-Step "Forgetting the link to LockIn..."
+        foreach ($name in "link.json", "link-offer.json", "linked-session.json") {
+            Remove-Item (Join-Path $SettingsDir $name) -Force -ErrorAction SilentlyContinue
+        }
+        Remove-Item (Join-Path $LinkDir "pairing-offer.json") -Force -ErrorAction SilentlyContinue
+    }
+
     Write-Step "3/6  Copying to $InstallDir..."
     New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
+    # Not one of the folders replaced below: it holds the pairing offer, which
+    # must stay put through an update.
+    New-Item -ItemType Directory -Path $LinkDir -Force | Out-Null
     foreach ($part in "service", "native-host", "app") {
         $destination = Join-Path $InstallDir $part
         Remove-Folder $destination
         Copy-Item (Join-Path $build $part) $destination -Recurse
     }
-    Remove-Folder $build
+    if (-not $PrebuiltDir) { Remove-Folder $build }
+
+    # The scripts that remove it again, kept next to it so Windows' own
+    # "Installed apps" list can offer Uninstall (registered below).
+    $scriptsDir = Join-Path $InstallDir "installer"
+    Remove-Folder $scriptsDir
+    New-Item -ItemType Directory -Path $scriptsDir -Force | Out-Null
+    foreach ($name in "common.ps1", "uninstall.ps1") { Copy-Item (Join-Path $PSScriptRoot $name) $scriptsDir }
+    $version = ((Get-Item $ServiceExe).VersionInfo.ProductVersion -split '\+')[0]
+    $uninstallKey = "HKLM:\$UninstallKey"
+    New-Item -Path $uninstallKey -Force | Out-Null
+    $entries = @{
+        DisplayName     = $ProductName
+        DisplayVersion  = $version
+        Publisher       = $ProductName
+        DisplayIcon     = $AppExe
+        InstallLocation = $InstallDir
+        UninstallString = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$(Join-Path $scriptsDir 'uninstall.ps1')`""
+    }
+    foreach ($key in $entries.Keys) { Set-ItemProperty -Path $uninstallKey -Name $key -Value $entries[$key] }
+    Set-ItemProperty -Path $uninstallKey -Name NoModify -Value 1 -Type DWord
+    Set-ItemProperty -Path $uninstallKey -Name NoRepair -Value 1 -Type DWord
 
     Write-Step "4/6  Registering the service..."
     if (-not [System.Diagnostics.EventLog]::SourceExists($EventSource)) {
@@ -60,6 +105,9 @@ try {
     # ended), every time. Only administrators can stop it on purpose.
     & sc.exe failure $ServiceName reset= 86400 actions= restart/5000/restart/5000/restart/5000 | Out-Null
     & sc.exe failureflag $ServiceName 1 | Out-Null
+    # Signed-in users may start it (LockIn does, if it was stopped) but not
+    # stop it.
+    Grant-ServiceStart $ServiceName
 
     Write-Step "5/6  Connecting the browser extension..."
     $manifest = [ordered]@{
@@ -67,7 +115,7 @@ try {
         description     = "$ProductName native-messaging bridge to the service"
         path            = $HostExe
         type            = "stdio"
-        allowed_origins = @("chrome-extension://$ExtensionId/")
+        allowed_origins = @($ExtensionIds | ForEach-Object { "chrome-extension://$_/" })
     }
     # UTF-8 without a byte-order mark, which Chrome requires.
     [System.IO.File]::WriteAllText($HostManifest, ($manifest | ConvertTo-Json -Depth 5), (New-Object System.Text.UTF8Encoding($false)))
@@ -104,6 +152,7 @@ try {
     if (-not $answering) {
         throw "The service is installed but isn't answering. Event Viewer > Windows Logs > Application, source '$EventSource', should say why."
     }
+    Remove-32BitCopy
 
     # Opened through Explorer so it runs as you, not as administrator.
     Start-Process explorer.exe -ArgumentList "`"$AppExe`""
@@ -112,16 +161,20 @@ try {
     Write-Host "Done. $ProductName is installed and running." -ForegroundColor Green
     Write-Host "  - The service starts by itself with Windows. No PowerShell needed any more."
     Write-Host "  - Open the app from the Start menu or the desktop shortcut."
+    Write-Host "  - To link LockIn: in LockIn, open Settings > Link Study Blocker and click Link."
+    Write-Host "  - Chrome, Edge and Brave now install the extension by themselves. If it is not there a minute or two after restarting them, check the extensions page."
     Write-Host "  - To update after a change, run Install.cmd again. To remove it, run Uninstall.cmd."
 } catch {
     Write-Host ""
     Write-Host "Install failed: $($_.Exception.Message)" -ForegroundColor Red
-    Write-Host "The full log is in $(Join-Path $PSScriptRoot 'last-install.log')."
+    Write-Host "The full log is in $logPath."
+    $failed = $true
     # Don't leave the PC unprotected because an update went wrong halfway.
     if ((Get-Service -Name $ServiceName -ErrorAction SilentlyContinue) -and (Test-Path $ServiceExe)) {
         try { Start-Service -Name $ServiceName; Write-Host "The installed service was started again." } catch { }
     }
 } finally {
     Stop-Transcript | Out-Null
-    Read-Host "Press Enter to close"
+    if (-not $Quiet) { Read-Host "Press Enter to close" }
 }
+if ($failed) { exit 1 }

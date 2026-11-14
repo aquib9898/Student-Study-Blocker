@@ -28,23 +28,29 @@ public sealed class PolicyWriter
 
     private readonly IPolicyRegistry _registry;
     private readonly IStateStore _store;
+    private readonly string? _appBlockLauncher;
     private readonly object _gate = new();
     private readonly Dictionary<string, ManagedPolicy> _ledger;
     private readonly Dictionary<string, JsonElement> _lastWritten = new();
 
-    public PolicyWriter(IPolicyRegistry registry, IStateStore store)
+    // `appBlockLauncher`: the desktop app that blocked programs open instead
+    // (AppBlockPolicies); null to block programs through AppWatcher only.
+    public PolicyWriter(IPolicyRegistry registry, IStateStore store, string? appBlockLauncher = null)
     {
         _registry = registry;
         _store = store;
+        _appBlockLauncher = appBlockLauncher;
         _ledger = (store.Read<List<ManagedPolicy>>(LedgerFile) ?? [])
             .ToDictionary(m => PolicySetting.IdFor(m.KeyPath, m.Name, m.IsList));
     }
 
-    public PolicyApplyResult Apply(LockState state)
+    public PolicyApplyResult Apply(LockState state, bool sessionLock = false)
     {
         lock (_gate)
         {
-            var desired = BrowserPolicies.For(state).ToDictionary(s => s.Id);
+            var desired = BrowserPolicies.For(state, sessionLock)
+                .Concat(AppBlockPolicies.For(state, _appBlockLauncher))
+                .ToDictionary(s => s.Id);
             var applied = new List<string>();
             var repaired = new List<string>();
 
@@ -79,18 +85,33 @@ public sealed class PolicyWriter
             }
 
             var released = _ledger.Values.Where(m => !desired.ContainsKey(PolicySetting.IdFor(m.KeyPath, m.Name, m.IsList))).ToList();
-            foreach (var managed in released)
-            {
-                _registry.Write(managed.KeyPath, managed.Name, managed.IsList, managed.Original);
-                var id = PolicySetting.IdFor(managed.KeyPath, managed.Name, managed.IsList);
-                _ledger.Remove(id);
-                _lastWritten.Remove(id);
-                applied.Add($@"{managed.KeyPath}\{managed.Name} restored to {Show(managed.Original)}");
-            }
+            applied.AddRange(released.Select(Release));
             if (released.Count > 0) SaveLedger();
 
             return new PolicyApplyResult(applied, repaired);
         }
+    }
+
+    // Puts every setting the service took over back the way it was, for the
+    // uninstaller. Apply can't do this: some settings (Edge's forced install
+    // of the extension) are wanted whatever the lock and the rules say.
+    public IReadOnlyList<string> RestoreAll()
+    {
+        lock (_gate)
+        {
+            var restored = _ledger.Values.ToList().Select(Release).ToList();
+            if (restored.Count > 0) SaveLedger();
+            return restored;
+        }
+    }
+
+    private string Release(ManagedPolicy managed)
+    {
+        _registry.Write(managed.KeyPath, managed.Name, managed.IsList, managed.Original);
+        var id = PolicySetting.IdFor(managed.KeyPath, managed.Name, managed.IsList);
+        _ledger.Remove(id);
+        _lastWritten.Remove(id);
+        return $@"{managed.KeyPath}\{managed.Name} restored to {Show(managed.Original)}";
     }
 
     // Entries that were in the list before the service took it over stay,

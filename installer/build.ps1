@@ -3,7 +3,7 @@
 # runtime already on this PC. Needs no administrator rights; install.ps1
 # runs it first. Build files go under -OutDir, never into the repo's own
 # bin/obj folders.
-param([Parameter(Mandatory = $true)] [string]$OutDir)
+param([Parameter(Mandatory = $true)] [string]$OutDir, [switch]$SelfContained)
 
 $ErrorActionPreference = "Stop"
 $repo = Split-Path $PSScriptRoot -Parent
@@ -18,7 +18,7 @@ foreach ($part in $projects.Keys) {
     $target = Join-Path $OutDir $part
     if (Test-Path $target) { Remove-Item $target -Recurse -Force }
     Write-Host "  building the $part"
-    & dotnet publish (Join-Path $repo $projects[$part]) -c Release -r win-x64 --self-contained false `
+    & dotnet publish (Join-Path $repo $projects[$part]) -c Release -r win-x64 --self-contained $(if ($SelfContained) { "true" } else { "false" }) `
         -o $target --artifacts-path $work --nologo -v quiet
     if ($LASTEXITCODE -ne 0) { throw "Building the $part failed (see the messages above)." }
 }

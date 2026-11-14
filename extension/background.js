@@ -8,6 +8,11 @@ const TAG = "[Study Blocker]";
 const HOST = "com.smartstudyblocker.host";
 const POLL_ALARM = "poll-service";
 
+// The browser's own wording when no native-messaging host is registered under
+// HOST, which is what a store install on a PC without the desktop app gets.
+// The popup shows an install notice for it, rather than a generic error.
+const HOST_NOT_REGISTERED = /native messaging host not found/i;
+
 // Last thing the service told us, kept so the popup can show it without
 // waiting on a round trip.
 let lastStatus = { connected: false, error: "not checked yet" };
@@ -24,7 +29,8 @@ function callService(request) {
     try {
       chrome.runtime.sendNativeMessage(HOST, request, (reply) => {
         if (chrome.runtime.lastError) {
-          done({ ok: false, error: chrome.runtime.lastError.message });
+          const error = chrome.runtime.lastError.message;
+          done({ ok: false, error, appMissing: HOST_NOT_REGISTERED.test(error) });
         } else if (!reply) {
           done({ ok: false, error: "empty reply from host" });
         } else {
@@ -48,7 +54,7 @@ async function refreshStatus() {
     lastStatus = { connected: true, status: reply.payload };
     await rememberLocked(reply);
   } else {
-    lastStatus = { connected: false, error: reply.error ?? "unknown error" };
+    lastStatus = { connected: false, error: reply.error ?? "unknown error", appMissing: !!reply.appMissing };
   }
   console.info(TAG, "service status", JSON.stringify(lastStatus));
   return lastStatus;

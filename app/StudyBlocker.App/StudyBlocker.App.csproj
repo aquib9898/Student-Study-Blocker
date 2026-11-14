@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -16,6 +16,7 @@
     <ApplicationIcon>Assets\logo.ico</ApplicationIcon>
     <!-- WPF's Windows 11 (Fluent) theme, switched on by Application.ThemeMode, is still marked experimental. -->
     <NoWarn>$(NoWarn);WPF0001</NoWarn>
+    <Version>0.4.4</Version>
   </PropertyGroup>
 
   <ItemGroup>

@@ -5,10 +5,40 @@
         Width="500" Height="820" MinWidth="420" MinHeight="480"
         WindowStartupLocation="CenterScreen"
         Loaded="Window_Loaded" Closed="Window_Closed">
+    <DockPanel>
+    <!-- On top for as long as a LockIn session is running, and the sentence is the service's
+         own (LinkProtocol.LockedFromLockIn, set in code): it refuses every loosening meanwhile. -->
+    <Border x:Name="LockInBanner" DockPanel.Dock="Top" Visibility="Collapsed" Background="#0B2A5E" Padding="16,10">
+        <TextBlock x:Name="LockInBannerText" Foreground="White" FontSize="14" FontWeight="SemiBold"
+                   TextWrapping="Wrap" TextAlignment="Center" />
+    </Border>
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel Margin="28,20,28,28">
 
             <DockPanel>
+                <!-- Forgets the link to LockIn so it can be linked again (no label, on purpose).
+                     A template of its own: the theme's button draws a filled box around anything. -->
+                <Button DockPanel.Dock="Right" VerticalAlignment="Top" Width="16" Height="16" Cursor="Hand"
+                        Click="ResetLink_Click">
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="Chrome" CornerRadius="8" Background="Transparent">
+                                <TextBlock x:Name="Arrow" Text="&#xE72C;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                                           FontSize="9" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource SubtleFillColorSecondaryBrush}" />
+                                    <Setter TargetName="Arrow" Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+                                </Trigger>
+                                <Trigger Property="IsPressed" Value="True">
+                                    <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource SubtleFillColorTertiaryBrush}" />
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Button.Template>
+                </Button>
                 <!-- The emblem as a shape in the theme's text colour, on no background of its
                      own, so it sits on the window's background in light and dark alike. -->
                 <Rectangle Width="44" Height="44" Margin="0,0,12,0"
@@ -49,7 +79,7 @@
                             Style="{DynamicResource AccentButtonStyle}" Click="LockButton_Click" />
                 </DockPanel>
                 <TextBlock x:Name="ExtensionOffNote" Visibility="Collapsed" Style="{StaticResource Hint}" Margin="0,8,0,0"
-                           Text="The extension is off: no sites are blocked, and YouTube isn't filtered or decluttered." />
+                           Text="The extension is off: no sites or apps are blocked, and YouTube isn't filtered or decluttered." />
 
                 <StackPanel x:Name="LockTimes" Visibility="Collapsed">
                     <TextBlock x:Name="LockLabel" Text="Lock for" Style="{StaticResource SectionLabel}" />
@@ -79,40 +109,90 @@
                 </StackPanel>
 
                 <Separator Margin="0,16,0,0" />
-                <TextBlock Text="Blocked sites" Style="{StaticResource SectionLabel}" />
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="Blocked sites" Style="{StaticResource SectionLabel}" />
+                    <!-- A "no entry" sign: a ring with a bar across it. -->
+                    <Grid Width="16" Height="16" Margin="8,10,0,0" VerticalAlignment="Center">
+                        <Ellipse Stroke="#E5484D" StrokeThickness="2" />
+                        <Line X1="3.5" Y1="12.5" X2="12.5" Y2="3.5" Stroke="#E5484D" StrokeThickness="2" />
+                    </Grid>
+                </StackPanel>
                 <DockPanel>
                     <Button DockPanel.Dock="Right" Content="Add" MinWidth="80" Margin="8,0,0,0" Click="AddSite_Click" />
                     <Grid>
                         <TextBox x:Name="SiteBox" KeyDown="SiteBox_KeyDown" />
-                        <TextBlock Text="reddit.com" Style="{StaticResource Placeholder}"
+                        <TextBlock Text="example.com" Style="{StaticResource Placeholder}"
                                    Visibility="{Binding Text.IsEmpty, ElementName=SiteBox, Converter={StaticResource BoolToVisibility}}" />
                     </Grid>
                 </DockPanel>
-                <StackPanel x:Name="SitesList" Margin="0,6,0,0" />
+                <Expander x:Name="SitesExpander" Header="Show blocked sites" Margin="0,6,0,0" IsExpanded="False">
+                    <StackPanel Margin="0,6,0,0">
+                        <StackPanel x:Name="SitesList" />
+                        <CheckBox x:Name="BlockAdultBox" Content="Block adult content" Margin="0,12,0,0" Click="BlockAdult_Click" />
+                        <TextBlock Style="{StaticResource Hint}" Margin="28,0,0,0"
+                                   Text="Blocks porn sites and turns on safe search in Google and Bing." />
+                    </StackPanel>
+                </Expander>
 
                 <Separator Margin="0,16,0,0" />
-                <TextBlock Text="YouTube channels" Style="{StaticResource SectionLabel}" />
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="Blocked apps" Style="{StaticResource SectionLabel}" />
+                    <!-- The same "no entry" sign as the blocked sites. -->
+                    <Grid Width="16" Height="16" Margin="8,10,0,0" VerticalAlignment="Center">
+                        <Ellipse Stroke="#E5484D" StrokeThickness="2" />
+                        <Line X1="3.5" Y1="12.5" X2="12.5" Y2="3.5" Stroke="#E5484D" StrokeThickness="2" />
+                    </Grid>
+                </StackPanel>
+                <!-- An open app from the list, or any program file through Browse. -->
                 <DockPanel>
-                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                        <Button x:Name="AllowChannelButton" Content="Allow" MinWidth="72" Margin="8,0,0,0" Click="AllowChannel_Click" />
-                        <Button Content="Block" MinWidth="72" Margin="8,0,0,0" Click="BlockChannel_Click" />
-                    </StackPanel>
+                    <Button DockPanel.Dock="Right" Content="Browse…" MinWidth="80" Margin="8,0,0,0" Click="BrowseApp_Click" />
+                    <Button DockPanel.Dock="Right" Content="Add" MinWidth="80" Margin="8,0,0,0" Click="AddApp_Click" />
                     <Grid>
-                        <TextBox x:Name="ChannelBox" KeyDown="ChannelBox_KeyDown" />
-                        <TextBlock Text="Channel name" Style="{StaticResource Placeholder}"
-                                   Visibility="{Binding Text.IsEmpty, ElementName=ChannelBox, Converter={StaticResource BoolToVisibility}}" />
+                        <ComboBox x:Name="AppPicker" DisplayMemberPath="Label" HorizontalAlignment="Stretch"
+                                  DropDownOpened="AppPicker_DropDownOpened" SelectionChanged="AppPicker_SelectionChanged" />
+                        <TextBlock x:Name="AppPickerPlaceholder" Text="Choose an open app" Style="{StaticResource Placeholder}" />
                     </Grid>
                 </DockPanel>
-                <StackPanel x:Name="ChannelsList" Margin="0,6,0,0" />
+                <Expander x:Name="AppsExpander" Header="Show blocked apps" Margin="0,6,0,0" IsExpanded="False">
+                    <StackPanel x:Name="AppsList" Margin="0,6,0,0" />
+                </Expander>
 
                 <Separator Margin="0,16,0,0" />
-                <CheckBox x:Name="EducationOnlyBox" Content="Education-only mode" Margin="0,14,0,0" Click="EducationOnly_Click" />
-                <TextBlock Style="{StaticResource Hint}" Margin="28,0,0,0"
-                           Text="Only videos with a study word in the title or tags play." />
+                <Expander x:Name="YouTubeExpander" FontSize="15" FontWeight="SemiBold" Margin="0,10,0,0" IsExpanded="False">
+                    <Expander.Header>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="YouTube" VerticalAlignment="Center" />
+                            <!-- The play-button mark: a red rounded tile with a white triangle. -->
+                            <Grid Width="26" Height="18" Margin="8,1,0,0" VerticalAlignment="Center">
+                                <Border Background="#FF0000" CornerRadius="5" />
+                                <Polygon Points="0,0 0,8 7,4" Fill="White" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="2,0,0,0" />
+                            </Grid>
+                        </StackPanel>
+                    </Expander.Header>
+                    <StackPanel TextElement.FontSize="14" TextElement.FontWeight="Normal">
+                    <TextBlock Text="YouTube channels" Style="{StaticResource SectionLabel}" />
+                    <DockPanel>
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                            <Button x:Name="AllowChannelButton" Content="Allow" MinWidth="72" Margin="8,0,0,0" Click="AllowChannel_Click" />
+                            <Button Content="Block" MinWidth="72" Margin="8,0,0,0" Click="BlockChannel_Click" />
+                        </StackPanel>
+                        <Grid>
+                            <TextBox x:Name="ChannelBox" KeyDown="ChannelBox_KeyDown" />
+                            <TextBlock Text="Channel name" Style="{StaticResource Placeholder}"
+                                       Visibility="{Binding Text.IsEmpty, ElementName=ChannelBox, Converter={StaticResource BoolToVisibility}}" />
+                        </Grid>
+                    </DockPanel>
+                    <StackPanel x:Name="ChannelsList" Margin="0,6,0,0" />
 
-                <Separator Margin="0,16,0,0" />
-                <TextBlock Text="Hide on YouTube" Style="{StaticResource SectionLabel}" />
-                <UniformGrid x:Name="DeclutterGrid" Columns="2" />
+                    <CheckBox x:Name="EducationOnlyBox" Content="Education-only mode" Margin="0,14,0,0" Click="EducationOnly_Click" />
+                    <TextBlock Style="{StaticResource Hint}" Margin="28,0,0,0"
+                               Text="Only videos with a study word in the title or tags play." />
+
+                    <Separator Margin="0,16,0,0" />
+                    <TextBlock Text="Hide on YouTube" Style="{StaticResource SectionLabel}" />
+                    <UniformGrid x:Name="DeclutterGrid" Columns="2" />
+                    </StackPanel>
+                </Expander>
 
                 <TextBlock x:Name="LockedNote" Visibility="Collapsed" Style="{StaticResource Hint}" Margin="0,18,0,0"
                            Text="During a lock you can only make things stricter: nothing can be removed or unticked until it ends." />
@@ -121,4 +201,5 @@
             </StackPanel>
         </StackPanel>
     </ScrollViewer>
+    </DockPanel>
 </Window>

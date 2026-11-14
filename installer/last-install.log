@@ -1,16 +1,16 @@
 ﻿**********************
 Windows PowerShell transcript start
-Start time: 20261001174810
+Start time: 20261024143746
 Username: AQUIB\noors
 RunAs User: AQUIB\noors
 Configuration Name: 
 Machine: AQUIB (Microsoft Windows NT 10.0.26200.0)
 Host Application: C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe -NoProfile -ExecutionPolicy Bypass -File D:\Student-Study-Blocker\installer\install.ps1
-Process ID: 8312
-PSVersion: 5.1.26100.9444
+Process ID: 24232
+PSVersion: 5.1.26100.9711
 PSEdition: Desktop
-PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.26100.9444
-BuildVersion: 10.0.26100.9444
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.26100.9711
+BuildVersion: 10.0.26100.9711
 CLRVersion: 4.0.30319.42000
 WSManStackVersion: 3.0
 PSRemotingProtocolVersion: 2.3
@@ -20,7 +20,39 @@ Installing Smart Study Distraction Blocker
 
 1/6  Building...
   building the service
-
+Restore succeeded with 5 warning(s) in 0.8s
+    D:\Student-Study-Blocker\service\src\StudyBlocker.Service\StudyBlocker.Service.csproj : warning NU1902: Package 'Sys
+tem.Security.Cryptography.Pkcs' 10.0.12 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-
+2fmv-rv2c-59x7
+    D:\Student-Study-Blocker\service\src\StudyBlocker.Service\StudyBlocker.Service.csproj : warning NU1903: Package 'Sys
+tem.Security.Cryptography.Pkcs' 10.0.12 has a known high severity vulnerability, https://github.com/advisories/GHSA-846f
+-f764-76mx
+    D:\Student-Study-Blocker\service\src\StudyBlocker.Service\StudyBlocker.Service.csproj : warning NU1903: Package 'Sys
+tem.Security.Cryptography.Xml' 10.0.12 has a known high severity vulnerability, https://github.com/advisories/GHSA-7hqp-
+7c5m-4vq6
+    D:\Student-Study-Blocker\service\src\StudyBlocker.Service\StudyBlocker.Service.csproj : warning NU1903: Package 'Sys
+tem.Security.Cryptography.Xml' 10.0.12 has a known high severity vulnerability, https://github.com/advisories/GHSA-c399-
+9853-6jmj
+    D:\Student-Study-Blocker\service\src\StudyBlocker.Service\StudyBlocker.Service.csproj : warning NU1903: Package 'Sys
+tem.Security.Cryptography.Xml' 10.0.12 has a known high severity vulnerability, https://github.com/advisories/GHSA-r955-
+8q5j-3h83
+  StudyBlocker.Service net10.0-windows win-x64 succeeded with 5 warning(s) (1.8s) → C:\Users\noors\AppData\Local\Temp\Sm
+artStudyBlocker-build\service\
+    D:\Student-Study-Blocker\service\src\StudyBlocker.Service\StudyBlocker.Service.csproj : warning NU1902: Package 'Sys
+tem.Security.Cryptography.Pkcs' 10.0.12 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-
+2fmv-rv2c-59x7
+    D:\Student-Study-Blocker\service\src\StudyBlocker.Service\StudyBlocker.Service.csproj : warning NU1903: Package 'Sys
+tem.Security.Cryptography.Pkcs' 10.0.12 has a known high severity vulnerability, https://github.com/advisories/GHSA-846f
+-f764-76mx
+    D:\Student-Study-Blocker\service\src\StudyBlocker.Service\StudyBlocker.Service.csproj : warning NU1903: Package 'Sys
+tem.Security.Cryptography.Xml' 10.0.12 has a known high severity vulnerability, https://github.com/advisories/GHSA-7hqp-
+7c5m-4vq6
+    D:\Student-Study-Blocker\service\src\StudyBlocker.Service\StudyBlocker.Service.csproj : warning NU1903: Package 'Sys
+tem.Security.Cryptography.Xml' 10.0.12 has a known high severity vulnerability, https://github.com/advisories/GHSA-c399-
+9853-6jmj
+    D:\Student-Study-Blocker\service\src\StudyBlocker.Service\StudyBlocker.Service.csproj : warning NU1903: Package 'Sys
+tem.Security.Cryptography.Xml' 10.0.12 has a known high severity vulnerability, https://github.com/advisories/GHSA-r955-
+8q5j-3h83
   building the native-host
 
   building the app
@@ -28,7 +60,6 @@ Installing Smart Study Distraction Blocker
 
 2/6  Stopping what's running...
   stopping the service
-  closing the app
 
 3/6  Copying to C:\Program Files\Smart Study Distraction Blocker...
 
@@ -41,8 +72,9 @@ Installing Smart Study Distraction Blocker
 Done. Smart Study Distraction Blocker is installed and running.
   - The service starts by itself with Windows. No PowerShell needed any more.
   - Open the app from the Start menu or the desktop shortcut.
+  - Chrome, Edge and Brave now install the extension by themselves. If it is not there a minute or two after restarting them, check the extensions page.
   - To update after a change, run Install.cmd again. To remove it, run Uninstall.cmd.
 **********************
 Windows PowerShell transcript end
-End time: 20261001174826
+End time: 20261024143801
 **********************

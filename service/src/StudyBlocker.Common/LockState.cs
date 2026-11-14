@@ -13,11 +13,6 @@ public sealed record LockState
     // Time counted toward the lock so far. Never decreases.
     public long ElapsedMs { get; init; }
 
-    // Local, pre-publish testing only: this lock's browser lockdown leaves
-    // DevTools available (see LockRequest.DevKeepDevTools). Belongs to the
-    // lock, so it's gone when the lock ends and can't carry into the next.
-    public bool DevKeepDevTools { get; init; }
-
     // Set while the lock is being broken early (plan §10). The lock stays
     // fully active until this countdown finishes, and then it ends.
     public BreakCountdown? Break { get; init; }

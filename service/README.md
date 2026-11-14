@@ -33,11 +33,13 @@ browser extension only send it requests.
     Windows identity. One JSON line in, one out.
   - `Worker.cs`: every 5 s counts lock time and re-checks the browser
     policies; syncs network time at startup and every 30 min.
+  - `LinkStore.cs` + `LinkService.cs`: the link to LockIn (see "The link to
+    LockIn" below). `LockStateStore` holds the session it starts.
   - `Program.cs`: runs as a Windows service (see "Running it" below), one
     copy at a time.
-- `tests/StudyBlocker.Service.Tests/`: 95 unit tests for the ratchet, the
-  clock, the policy writer and the classifier. They pin down plan §17's
-  invariants.
+- `tests/StudyBlocker.Service.Tests/`: 138 unit tests for the ratchet, the
+  clock, the policy writer, the classifier and the LockIn link. They pin
+  down plan §17's invariants.
 - `tools/StudyBlocker.Cli/`: `sbctl`, a developer command line that sends
   the same requests the app does, for testing without the app or a browser.
 - `StudyBlocker.slnx` also includes the desktop app,
@@ -107,7 +109,8 @@ using each browser's own names (verified in Milestone 0):
 
 | What | Policy | When |
 |---|---|---|
-| blocked sites | `URLBlocklist` list | always |
+| blocked sites | `URLBlocklist` list | always, unless the extension switch is off |
+| the extension, in every browser | `ExtensionInstallForcelist` entry for its store copy (Edge Add-ons in Edge, the Chrome Web Store in Chrome and Brave) | always |
 | Shorts | `URLBlocklist` entry `youtube.com/shorts` | during a lock |
 | no Incognito | `IncognitoModeAvailability` = 1 (Edge: `InPrivateModeAvailability`; Brave also `TorDisabled` = 1) | during a lock |
 | no Guest | `BrowserGuestModeEnabled` = 0 | during a lock |
@@ -118,6 +121,29 @@ using each browser's own names (verified in Milestone 0):
   only stops the list shrinking. A site blocks its subdomains too
   (`reddit.com` covers `old.reddit.com`), and a path blocks just that part
   of a site (`youtube.com/shorts`).
+- **Blocked apps apply like blocked sites** (2026-11-09): `RuleSet.BlockedApps`
+  rides the same ratchet, lapses with the extension switch off and on a
+  LockIn session-break (`LockStateStore.Enforced`), and a LockIn session
+  neither adds nor removes any. Two halves:
+  - *Launch*: `AppBlockPolicies` gives each blocked program an Image File
+    Execution Options `Debugger` value (`HKLM\SOFTWARE\Microsoft\Windows
+    NT\CurrentVersion\Image File Execution Options\<exe>`) pointing at the
+    installed app with `--app-blocked`, so Windows opens the notice instead.
+    `PolicyWriter` owns these like any policy: ledgered, repaired within a
+    tick, restored on release and by `--restore-browser-policies`. A
+    development run (no `..pp\SmartStudyDistractionBlocker.exe` next to
+    the service) writes none.
+  - *Running*: `AppWatcher` sweeps the process list every second and ends
+    any copy of a blocked program in a user session, by file name or by the
+    name its version info says it was built under (catches a renamed copy).
+    It then opens the notice on that desktop (`UserSessionNotice`, at most
+    once a minute per program). This catches Store apps, which ignore the
+    Debugger value, and programs already open when a block begins.
+  - `BlockedApp.Protected` (Windows' shell and core processes, this blocker,
+    LockIn) can never be blocked; `RuleRequests.Valid` refuses them.
+  - LockIn's `override-rules` doesn't send `BlockedApps` (or
+    `BlockAdultContent`); `RuleRequests.KeepUnsent` keeps their current
+    values when a field is missing, so the link's wire format is unchanged.
 - **The browser lockdown comes and goes with the lock.** Everything else
   in the table is switched on when a lock starts and put back when it
   ends. `BrowserPolicies.For` derives it from `LockState.IsLocked`; it's
@@ -125,6 +151,27 @@ using each browser's own names (verified in Milestone 0):
   that stayed on after a lock until changed with `sbctl`. The app has no
   switches for them, so they're now tied to the lock itself. To block
   Shorts all the time, add `youtube.com/shorts` as a blocked site.
+- **The extension is force-installed in Chrome, Edge and Brave**, all the
+  time and for every profile and user on the PC: plan §7's "force-install
+  the extension and prevent its removal". Edge gets the Edge Add-ons copy
+  (approved 2026-10-04); Chrome and Brave get the Chrome Web Store copy
+  (unlisted, ID `fgflnbhgcppnodpggmbeomdpciebgaln`). The browser installs
+  it by itself, with no Remove or off switch on its extensions page, and
+  the app's switch makes it idle instead.
+  - On a PC that isn't joined to a domain, Chrome and Edge only
+    force-install extensions from their own store, which is why both
+    had to be published. Edge's policy also applies to profiles signed in
+    with a Microsoft account.
+  - A browser uninstalls a force-installed extension once it leaves the
+    list, so the uninstaller is the only thing that takes it off
+    (`--restore-browser-policies`, below).
+  - Brave takes the Chrome Web Store entry. Its support for the policy
+    wasn't confirmed before the first install (`../policy-test/README.md`,
+    finding 2), so check `brave://extensions` afterwards.
+  - A store copy doesn't need Developer mode, so every lock turns DevTools
+    off in all three browsers. An unpacked copy of the extension stops
+    running during a lock; the old `--dev-keep-devtools` exception for it
+    is gone.
 - **Open browsers don't see a change by themselves.** Chrome, Edge and
   Brave re-read their registry policies only when they start, every 15
   minutes, or on a Windows Group Policy notification. Found live
@@ -254,7 +301,8 @@ blocks a Distraction and a blocked channel's videos all the time. See
 
 Plan §9's checklist of "algorithmic/temptation surfaces" to hide: home
 feed, recommended videos, end-screen suggestions, autoplay, comments,
-trending/explore, live chat, subscriptions feed.
+trending/explore, live chat, subscriptions feed, and (2026-11-09) the
+playlist panel beside a video watched from a playlist (`Playlists`).
 
 - `RuleSet.Declutter` is a plain list of `DeclutterOption` values, next
   to `BlockedDomains`. It's the same shape of thing (a profile setting
@@ -268,51 +316,110 @@ trending/explore, live chat, subscriptions feed.
   extension. When YouTube redesigns something, only that JSON file needs
   fixing, never this service.
 - Per plan §9, this only hides feed and recommendation surfaces; it never
-  blocks navigation. Search, subscriptions, playlists and any video opened
+  blocks navigation. Search, subscriptions, a playlist's own page and any video opened
   directly keep working. An opened video is still classified and enforced
   as usual; Declutter only changes what's visible *around* it. Shorts are
   blocked during every lock regardless, by the lockdown's
   `youtube.com/shorts` policy entry.
+
+## The link to LockIn
+
+LockIn is a separate study app. This service works exactly as before
+without it; once the two are linked (the user's request, 2026-10-24):
+- LockIn won't start a focus session unless this service is running with
+  the extension on, and switches the extension on itself if it was off.
+- While a LockIn session runs, the rules are held at their strictest, and
+  when it ends they go back to how they were.
+- Outside sessions, LockIn can override a lock: switch the extension off or
+  end the lock, even though the app can't.
+
+**Pairing** (`LinkStore.cs`).
+- While nothing is linked, the service leaves a one-time offer, a random
+  token in `C:\Program Files\Smart Study Distraction Blocker\link\pairing-offer.json`.
+  Every user can read that folder; only administrators and the service can
+  write it. Only the token's hash is kept in the protected store. If the
+  file is deleted or garbled, the next tick puts a new one there. The `link`
+  folder itself is the installer's: without it there is quietly nothing to
+  offer (a copy run from the repo, or the first 0.3.2 setup, which installed
+  into Program Files (x86) instead).
+- LockIn sends the token in `pair`. The service deletes the offer, notes
+  which Windows account asked, and answers with a long-lived secret, once.
+  Only its hash is kept (`link.json`).
+- Every later link request carries that secret (`IpcRequest.Secret`) and has
+  to come from that same Windows account. Refusals are `link:not-linked`,
+  `link:bad-secret`, `link:wrong-user`, `link:bad-offer` and
+  `link:already-linked`.
+- `unpair` forgets the link and leaves a fresh offer. It needs the secret;
+  if LockIn has lost it, the app's reload arrow (`reset-link`) does the same
+  with no secret, except during a LockIn session, and so does the installer
+  with `-ResetLink` (double-click `../installer/Reset-LockIn-Link.cmd`).
+- The secret lives in LockIn's profile, which the daily account can read.
+  So this keeps other programs and impulses out; it is not a wall against
+  someone determined and technical. That is the intent: using the link
+  needs no administrator rights.
+
+**The session lock** (`LockStateStore`, `linked-session.json`).
+- `session-start` switches the extension on if it was off (and remembers
+  that), then holds the ratchet as a lock does: `update-rules`
+  can only get stricter, `break-lock` is refused, and so are the channel
+  lists' loosening. Every refusal is the one sentence the app shows in its
+  banner: "Locked from LockIn, end LockIn session to disable". It wins over
+  a lock's own message when both apply. A lock can still be started or
+  extended meanwhile.
+- It has no timer of its own, only a **lease**: LockIn sends
+  `session-heartbeat` at least every 20 s, and 90 s without one ends the
+  session. A **cap** (the session's planned length plus 3 hours, at most 12)
+  ends it even if heartbeats never stop. Both are counted on the monotonic
+  counter, like lock time.
+- A gap of more than 30 s between two counts means the service itself was
+  asleep or stalled, not LockIn, so LockIn gets a fresh lease.
+- The session survives a service restart (the lease starts again), so an
+  update installed mid-session doesn't drop it.
+- Ending it, by `session-end`, the lease or the cap, puts the extension
+  back **off if it was off before** and LockIn switched it on. Never under a
+  lock: one started meanwhile keeps the extension on.
+- `session-start` again while one runs only renews the lease, switches the
+  extension back on if something did and can raise the cap, so it never
+  forgets what the extension was before the session.
+
+**Override** (`override-rules`, `override-end-lock`). The ratchet doesn't
+apply: LockIn is what the user chose to trust when they linked it. Refused
+during a LockIn session, which is exactly when the user asked for no way
+out. `override-end-lock` ends a lock at once, with no countdown.
+
+**Wire format** (`StudyBlocker.Common/LinkMessages.cs`): PascalCase
+property names, matched case-sensitively. LockIn depends on these names and
+strings as they are.
 
 ## Requests
 
 | Request | Payload | Notes |
 |---|---|---|
 | `ping` | | |
-| `get-status` | | lock state (incl. the rules and any break countdown), trusted time, system time, `BreakDelayMs` |
+| `get-status` | | lock state (incl. the rules and any break countdown), trusted time, system time, `BreakDelayMs`, `Link` (`IsLinked`, `OfferAvailable`, `SessionActive`) |
 | `update-rules` | `RuleSet` | the whole rule set; refused if looser during a lock |
-| `start-lock` | `{"Minutes": n, "DevKeepDevTools": bool}` | up to 7 days; refused if already locked; `DevKeepDevTools` below |
+| `start-lock` | `{"Minutes": n}` | up to 7 days; refused if already locked |
 | `extend-lock` | `{"Minutes": n}` | while locked; at most 7 days remaining |
 | `break-lock` | | "Break lock early": the lock ends after `BreakDelayMs`; see above |
 | `cancel-break` | | "Cancel lock break" |
 | `classify-video` | `VideoMetadata` | returns `{Verdict, Reason, Source}`; applies education-only mode if it's on; Study [`switched-off`] while the extension switch is off |
 | `set-channel-rule` | `ChannelRuleRequest` | `ChannelId` or `Name`, `Rule` = `Allow`/`Block`/`Clear`, `VideoId` from the popup; during a lock see "Channel lists during a lock" |
 | `list-channel-rules` | | every channel entry with its name, each flagged `AllowedDuringCurrentLock` |
+| `pair` | `{"Offer": "..."}` | links LockIn and answers `{"Secret": "..."}`, once. Needs the offer, not a secret |
+| `unpair` | | needs `Secret`; refused during a LockIn session |
+| `reset-link` | | the app's reload arrow: forgets the link with no secret and leaves a fresh offer; refused during a LockIn session |
+| `session-start` | `{"MaxMinutes": n}` | needs `Secret`; 1 to 720; see "The link to LockIn" |
+| `session-heartbeat` | | needs `Secret`; replies with the status, whose `Link.SessionActive` says whether the session is still on |
+| `session-end` | | needs `Secret`; harmless with no session |
+| `override-rules` | `RuleSet` | needs `Secret`; applies with no ratchet; refused during a session |
+| `override-end-lock` | | needs `Secret`; ends a lock now; refused during a session |
 
 Reads (`ping`, `get-status`, `list-channel-rules`) are logged at Debug
 level only, since the app polls them every couple of seconds while it's
 open.
 
-**`DevKeepDevTools`** (found live 2026-09-28): Chrome/Edge bundle "disallow
-DevTools" together with disabling Developer mode on the extensions page.
-An unpacked, not-yet-published extension stops running the instant
-Developer mode goes off, taking down the very extension meant to enforce
-the lock.
-- A lock started with this flag skips just that one rule (Incognito, Guest
-  and secure DNS still lock down normally), so local testing keeps working.
-- The flag belongs to that one lock (`LockState.DevKeepDevTools`) and is
-  logged as a warning whenever used.
-- For now the app always asks for it (`KeepDevToolsWhileExtensionIsUnpacked`
-  in `../app/StudyBlocker.App/MainWindow.xaml.cs`), and so should
-  `sbctl lock ... --dev-keep-devtools`.
-- It has no reason to exist once the extension is actually store-installed
-  (Milestone 0 Phase B / 9): a store extension isn't affected by Developer
-  mode either way.
-
 ## Not done yet
 
-- Force-installing the extension (`ExtensionInstallForcelist`): needs the
-  store listing's ID (Milestone 0 Phase B).
 - Blocking youtube.com outright when the extension stops reporting in:
   not built.
 - The classifier's word lists (also education-only mode's study words) are
@@ -323,10 +430,8 @@ the lock.
   only for now.
 - The Declutter selectors live in a file bundled inside the extension
   package, not one the service can push updates to.
-  - That's fine while the extension is loaded unpacked: edit the file and
-    reload the extension.
-  - A store-published extension (Milestone 0 Phase B) can't be updated that
-    way without a new store release, which is exactly what plan §9 wants
+  - Every browser now runs a store copy, which can't be updated that way
+    without a new store release, which is exactly what plan §9 wants
     avoided.
   - Worth moving to a service-served file (like channel rules) once that
     matters.
@@ -363,7 +468,7 @@ sends the same requests from any shell:
 ```powershell
 dotnet run --project D:\Student-Study-Blocker\service\tools\StudyBlocker.Cli -- status
 dotnet run --project D:\Student-Study-Blocker\service\tools\StudyBlocker.Cli -- rules --block-site reddit.com --education-only --declutter-home-feed --declutter-comments
-dotnet run --project D:\Student-Study-Blocker\service\tools\StudyBlocker.Cli -- lock 5 --dev-keep-devtools
+dotnet run --project D:\Student-Study-Blocker\service\tools\StudyBlocker.Cli -- lock 5
 dotnet run --project D:\Student-Study-Blocker\service\tools\StudyBlocker.Cli -- break
 dotnet run --project D:\Student-Study-Blocker\service\tools\StudyBlocker.Cli -- cancel-break
 dotnet run --project D:\Student-Study-Blocker\service\tools\StudyBlocker.Cli -- classify --id v1 --title "Chapter 5: Thermodynamics full lecture" --category Education

@@ -30,10 +30,10 @@
     "C:\\Users\\noors\\.nuget\\packages\\": {}
   },
   "project": {
-    "version": "1.0.0",
+    "version": "0.4.5",
     "restore": {
       "projectUniqueName": "D:\\Student-Study-Blocker\\app\\StudyBlocker.App\\StudyBlocker.App.csproj",
-      "projectName": "StudyBlocker",
+      "projectName": "SmartStudyDistractionBlocker",
       "projectPath": "D:\\Student-Study-Blocker\\app\\StudyBlocker.App\\StudyBlocker.App.csproj",
       "packagesPath": "C:\\Users\\noors\\.nuget\\packages\\",
       "outputPath": "D:\\Student-Study-Blocker\\app\\StudyBlocker.App\\obj\\",

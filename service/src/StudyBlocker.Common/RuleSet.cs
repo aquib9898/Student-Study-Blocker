@@ -18,6 +18,11 @@ public enum DeclutterOption
     TrendingExplore,
     LiveChat,
     SubscriptionsFeed,
+
+    // The playlist panel beside (or under) a video watched from a playlist,
+    // and in the miniplayer (the user's request, 2026-11-09). The playlist's
+    // own page stays, so the playlist is still reachable.
+    Playlists,
 }
 
 // The user's profile: what they chose to block, edited from the desktop app.
@@ -52,12 +57,29 @@ public sealed record RuleSet
     // which is also what rules saved before it existed load as.
     public bool ExtensionEnabled { get; init; } = true;
 
+    // Adult sites blocked and safe search forced in every browser (the
+    // user's request, 2026-10-25; see BrowserPolicies). Browser policy, so
+    // like the blocked sites it lapses while the extension is switched off.
+    public bool BlockAdultContent { get; init; }
+
+    // Windows programs that can't run (the user's request, 2026-11-09; see
+    // BlockedApp). Like the blocked sites: always on, freely editable outside
+    // a lock, can only grow during one or a LockIn session, and lifted while
+    // the extension switch is off or on a LockIn session-break, since off
+    // means nothing is blocked.
+    public IReadOnlyList<BlockedApp> BlockedApps { get; init; } = [];
+
     // True if this rule set blocks at least everything `baseline` blocks.
     public bool IsAtLeastAsStrictAs(RuleSet baseline)
     {
         if (baseline.ExtensionEnabled && !ExtensionEnabled) return false;
+        if (baseline.BlockAdultContent && !BlockAdultContent) return false;
         if (baseline.EducationOnly && !EducationOnly) return false;
         if (baseline.Declutter.Except(Declutter).Any()) return false;
+        // A protected program can't be blocked (it is never enforced), so
+        // dropping one that got in under an older, shorter protected list
+        // isn't loosening anything.
+        if (baseline.BlockedApps.Any(app => !BlockedApp.IsProtected(app.Exe) && !BlockedApp.Contains(BlockedApps, app.Exe))) return false;
         return !baseline.BlockedDomains.Except(BlockedDomains, StringComparer.OrdinalIgnoreCase).Any();
     }
 }

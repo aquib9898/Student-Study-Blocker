@@ -4,6 +4,10 @@
 // stricter, so it's offered during a lock too (see blockChannel in
 // background.js).
 
+// Where the companion app is downloaded from. Placeholder until there's a
+// real download page.
+const INSTALL_URL = "https://example.com/";
+
 function send(type, fields = {}) {
   return new Promise((resolve) => chrome.runtime.sendMessage({ type, ...fields }, resolve));
 }
@@ -21,6 +25,17 @@ function fmtRemaining(lock) {
 
 async function render() {
   const result = await send("get-status");
+
+  // Without the desktop app there's nothing to show but how to get it.
+  if (result?.appMissing) {
+    const link = document.getElementById("install-link");
+    link.href = INSTALL_URL;
+    link.textContent = INSTALL_URL;
+    document.getElementById("main").hidden = true;
+    document.getElementById("missing").hidden = false;
+    return;
+  }
+
   const serviceEl = document.getElementById("service");
   const lockEl = document.getElementById("lock");
   const sitesEl = document.getElementById("sites");

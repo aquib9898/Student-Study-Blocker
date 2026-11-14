@@ -248,24 +248,6 @@ public class LockStateStoreTests
     }
 
     [Fact]
-    public void The_dev_keep_devtools_carveout_belongs_to_that_one_lock()
-    {
-        // sbctl lock --dev-keep-devtools: local, pre-publish testing only
-        // (see LockRequest.DevKeepDevTools). It must not carry into the next
-        // lock, which was a real bug when the lockdown lived in the rules.
-        var store = NewStore();
-        store.StartLock(TimeSpan.FromMinutes(1), includeDevToolsLockdown: false);
-        Assert.True(store.Current.DevKeepDevTools);
-
-        Pass(TimeSpan.FromMinutes(1));
-        store.Advance();
-        Assert.False(store.Current.DevKeepDevTools);
-
-        store.StartLock(TimeSpan.FromHours(2));
-        Assert.False(store.Current.DevKeepDevTools);
-    }
-
-    [Fact]
     public void Rules_are_freely_editable_outside_a_lock_and_survive_its_end()
     {
         var store = NewStore();
@@ -290,7 +272,7 @@ public class LockStateStoreTests
     {
         var store = NewStore();
         store.UpdateRules(new RuleSet { BlockedDomains = ["reddit.com"] });
-        store.StartLock(TimeSpan.FromHours(8), includeDevToolsLockdown: false);
+        store.StartLock(TimeSpan.FromHours(8));
         store.BreakLock();
 
         Pass(LockStateStore.BreakDelay - TimeSpan.FromMilliseconds(1));
@@ -303,7 +285,6 @@ public class LockStateStoreTests
         // Ends the same way as a lock whose time is up: only the rules stay.
         Assert.False(store.Current.IsLocked);
         Assert.Null(store.Current.Break);
-        Assert.False(store.Current.DevKeepDevTools);
         Assert.Equal(["reddit.com"], store.Current.Rules.BlockedDomains);
     }
 

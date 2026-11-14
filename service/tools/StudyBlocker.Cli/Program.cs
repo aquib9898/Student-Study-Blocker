@@ -12,19 +12,15 @@ const string Usage = """
       sbctl rules [--block-site <domain>]... [--education-only] [--extension-off]
                   [--declutter-home-feed] [--declutter-recommended] [--declutter-end-screen]
                   [--declutter-autoplay] [--declutter-comments] [--declutter-trending]
-                  [--declutter-live-chat] [--declutter-subscriptions]
+                  [--declutter-live-chat] [--declutter-subscriptions] [--declutter-playlists]
+                  [--block-app <program.exe>]...
                   (sets the whole rule set; no options clears it. During a
                   lock, sites and Declutter options can only be added, and
                   --education-only can't be dropped nor --extension-off
                   added)
-      sbctl lock <minutes> [--dev-keep-devtools]
+      sbctl lock <minutes>
                   (every lock also switches off Incognito, Guest, DevTools
-                  and secure DNS and blocks Shorts, until it ends.
-                  --dev-keep-devtools: local testing only, before the
-                  extension is published — skips the DevTools lockdown,
-                  which otherwise force-disables Developer mode and takes
-                  an unpacked extension down with it. Never use this once
-                  the extension is actually deployed.)
+                  and secure DNS and blocks Shorts, until it ends.)
       sbctl extend <minutes>
       sbctl break
                   ("Break lock early": the lock stays fully on for the
@@ -54,8 +50,7 @@ try
     {
         ["status"] => new IpcRequest { Type = "get-status" },
         ["rules", .. var options] => new IpcRequest { Type = "update-rules", Payload = JsonSerializer.SerializeToElement(ParseRules(options)) },
-        ["lock", var minutes, "--dev-keep-devtools"] => new IpcRequest { Type = "start-lock", Payload = LockPayload(minutes, devKeepDevTools: true) },
-        ["lock", var minutes] => new IpcRequest { Type = "start-lock", Payload = LockPayload(minutes, devKeepDevTools: false) },
+        ["lock", var minutes] => new IpcRequest { Type = "start-lock", Payload = Minutes(minutes) },
         ["extend", var minutes] => new IpcRequest { Type = "extend-lock", Payload = Minutes(minutes) },
         ["break"] => new IpcRequest { Type = "break-lock" },
         ["cancel-break"] => new IpcRequest { Type = "cancel-break" },
@@ -96,6 +91,7 @@ static RuleSet ParseRules(string[] options)
     var rules = new RuleSet();
     var sites = new List<string>();
     var declutter = new List<DeclutterOption>();
+    var apps = new List<BlockedApp>();
     for (var i = 0; i < options.Length; i++)
     {
         switch (options[i])
@@ -111,20 +107,17 @@ static RuleSet ParseRules(string[] options)
             case "--declutter-trending": declutter.Add(DeclutterOption.TrendingExplore); break;
             case "--declutter-live-chat": declutter.Add(DeclutterOption.LiveChat); break;
             case "--declutter-subscriptions": declutter.Add(DeclutterOption.SubscriptionsFeed); break;
+            case "--declutter-playlists": declutter.Add(DeclutterOption.Playlists); break;
+            case "--block-app" when i + 1 < options.Length: apps.Add(new BlockedApp { Exe = options[++i] }); break;
             default: throw new ArgumentException($"Unknown or incomplete option '{options[i]}'.");
         }
     }
-    return rules with { BlockedDomains = sites, Declutter = declutter };
+    return rules with { BlockedDomains = sites, Declutter = declutter, BlockedApps = apps };
 }
 
 static JsonElement Minutes(string value) =>
     int.TryParse(value, out var minutes)
         ? JsonSerializer.SerializeToElement(new LockRequest { Minutes = minutes })
-        : throw new ArgumentException($"'{value}' isn't a whole number of minutes.");
-
-static JsonElement LockPayload(string value, bool devKeepDevTools) =>
-    int.TryParse(value, out var minutes)
-        ? JsonSerializer.SerializeToElement(new LockRequest { Minutes = minutes, DevKeepDevTools = devKeepDevTools })
         : throw new ArgumentException($"'{value}' isn't a whole number of minutes.");
 
 static VideoMetadata ParseMetadata(string[] options)

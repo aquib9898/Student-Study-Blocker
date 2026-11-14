@@ -68,6 +68,17 @@ dotnet run --project D:\Student-Study-Blocker\app\StudyBlocker.App
   - A pasted address keeps only its site (`https://www.reddit.com/r/x`
     becomes `reddit.com`), while a typed path such as `youtube.com/shorts`
     is kept.
+- **Blocked apps**: pick an open app from the list (or **Browse…** for any
+  program file) and press Add. A blocked app can't start, and if it's
+  already open it closes at once; either way a small notice says why.
+  - Same terms as blocked sites: on all the time, can only grow during a
+    lock or a LockIn session, and lifted while the extension switch is off
+    or on a LockIn session-break with "Release all blocks during breaks".
+  - Windows' own programs (anything in the Windows folder), this blocker and
+    LockIn can't be blocked. Store apps can't be picked from the list, but
+    are closed like any other if blocked through Browse… or sbctl.
+  - Run with `--app-blocked <program>`, the app only shows that notice and
+    exits; Windows starts it that way in a blocked program's place.
 - **YouTube channels**: type a channel's name as it appears under its
   videos, then **Allow** or **Block**. Enter blocks. Like blocked sites,
   this applies all the time, not just during a lock. The extension's
@@ -78,7 +89,9 @@ dotnet run --project D:\Student-Study-Blocker\app\StudyBlocker.App
   - Your answers to the grey-zone popup on YouTube show up in the same list.
 - **Education-only mode**: a video only plays if its title or tags contain
   a study word (see `../service/README.md`).
-- **Hide on YouTube**: the 8 Declutter options.
+- **Hide on YouTube**: the 9 Declutter options. **Playlists** hides the
+  playlist panel next to a video watched from a playlist (and in the
+  miniplayer); unticked, it shows as usual.
 
 During a lock the window only offers what the service would accept, and the
 service refuses the rest regardless:
@@ -99,6 +112,27 @@ service refuses the rest regardless:
 - The button only appears while breaking would end the lock sooner than
   its own time.
 - See `../service/README.md` for how the countdown is timed.
+
+## While LockIn runs a session
+
+When LockIn is linked and a focus session is running (`Link.SessionActive`
+in the service's status), the service holds the rules like a lock does
+(`../service/README.md`, "The link to LockIn"):
+- A dark-blue bar sits above everything, for the whole session: "Locked from
+  LockIn, end LockIn session to disable". The sentence is the service's own
+  (`LinkProtocol.LockedFromLockIn`), so the bar and any refusal read the same.
+- What the service would refuse is disabled or hidden, as during a lock:
+  the Extension switch, **Break lock early**, removing a blocked site or
+  channel, unticking Education-only or a Declutter box.
+- Making things stricter still works, and so does starting or extending a
+  lock.
+- Nothing here ends the session. Only LockIn can, by ending its own
+  session.
+
+The tiny reload arrow at the top right (no label, on purpose) forgets the
+link to LockIn (`reset-link`), so the service leaves a fresh pairing offer and
+LockIn can link again: for when LockIn lost its secret, or was linked from
+another account. The service refuses it during a LockIn session.
 
 ## Pushing changes to open browsers
 
@@ -126,14 +160,6 @@ prompt them (tested 2026-09-28).
 - `App.xaml`: the Windows 11 theme, a few shared text styles and the on/off
   switch's look (WPF has no toggle switch of its own).
 - `Assets/`: the logo and the program icon (above).
-
-## DevTools during a lock (temporary)
-
-`KeepDevToolsWhileExtensionIsUnpacked` in `MainWindow.xaml.cs` makes every
-lock leave DevTools available, the same as `sbctl lock --dev-keep-devtools`.
-Otherwise the lock's DevTools policy also switches off Developer mode, which
-disables the unpacked extension for the whole lock. Set it to `false` once
-the extension is installed from a store (Milestone 0 Phase B / 9).
 
 ## Not done yet
 

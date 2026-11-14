@@ -17,14 +17,22 @@ block screen and applies Declutter.
   "Switched off" below), and an open YouTube tab now re-checks when you
   come back to it.
 
-Plain JavaScript, loaded unpacked, so there's no build step while iterating
-locally. It can move to TypeScript later without changing the design.
+Plain JavaScript, so there's no build step. Every browser runs a store copy
+that the service force-installs: Edge Add-ons for Edge (Hidden, approved
+2026-10-04), the Chrome Web Store for Chrome and Brave (unlisted, published
+2026-10-06). Loading this folder unpacked is only for quick tests (see
+"Local setup").
+It can move to TypeScript later without changing the design.
 
 ## What's here
 
-- `manifest.json`: MV3. A fixed `key` pins the extension's ID to
+- `manifest.json`: MV3. A fixed `key` pins the unpacked extension's ID to
   `dkbfaenfbikncbcgecpekmpgcemijgob`, so the native-messaging host can list
-  it in `allowed_origins` before the extension is ever loaded.
+  it in `allowed_origins` before the extension is ever loaded. The store
+  package leaves the key out, and Edge Add-ons gave its copy its own ID,
+  `jfaoannlngkcfncopcnofjiooamhfffm`, and the Chrome Web Store draft
+  `fgflnbhgcppnodpggmbeomdpciebgaln`. The host allows all three (installer
+  `common.ps1`).
 - `background.js`: the only part that talks to the service. It reaches the
   SYSTEM service through the native-messaging host.
   - It pulls status and rules on a 1-minute alarm and whenever the popup
@@ -76,6 +84,15 @@ locally. It can move to TypeScript later without changing the design.
   it also has **Block channel** (below). Its Milestone 3 Pause / Resume
   test buttons are gone: Resume could lift a block screen during a lock,
   and settings belong in the app.
+  - **Without the desktop app** (a store install on a PC that hasn't got
+    it), the browser has no native-messaging host to start, and says
+    "Specified native messaging host not found". `background.js` flags
+    that as `appMissing`, and the popup shows only "Companion app not
+    detected. Please install it from:" and a link instead of the status.
+    The link is `INSTALL_URL` at the top of `popup.js`, a placeholder
+    (`https://example.com/`) until there's a real download page.
+    Other failures (the service stopped, a host that's there but refuses
+    this extension) still show "not connected" and the browser's error.
 - `native-host/`: the bridge to the service (below).
 
 ## The native-messaging host
@@ -259,10 +276,24 @@ whatever is ticked, exactly like it has no opinion on classifier weights.
 1. **Install** with `../installer/Install.cmd`. That installs and starts the
    service, and installs and registers the native host for Chrome, Edge and
    Brave, for every user (HKLM). The extension shows "not connected" until
-   the service is running.
-2. **Load the extension.** In each browser: extensions page → turn on
-   Developer mode → "Load unpacked" → pick `D:\Student-Study-Blocker\extension`.
-   The ID should read `dkbfaenfbikncbcgecpekmpgcemijgob`.
+   the service is running, and "Companion app not detected" if the app
+   isn't installed at all.
+2. **Chrome, Edge and Brave: nothing to load.** The service force-installs
+   the store copies (`ExtensionInstallForcelist`, see
+   `../service/README.md`), in every profile, so the extension installs by
+   itself and has no Remove or off switch on the extensions page. Restart
+   the browsers if it doesn't appear within a minute or two. Remove any
+   unpacked copy you loaded earlier (ID `dkbfaenfbikncbcgecpekmpgcemijgob`),
+   or both copies would run.
+3. **Quick test of a change (optional).** Load this folder unpacked in a
+   throwaway browser profile (Developer mode → "Load unpacked"). In a
+   profile that also gets the store copy, both run.
+
+**Updating it:** every browser only gets a change as a store update: raise
+the version in `manifest.json`, rebuild
+`../store/smart-study-extension-<version>.zip` (without the `key`), and
+upload it in Partner Center (Edge) and the Chrome Web Store dashboard.
+Once each passes review, the browsers update themselves within a few hours.
 
 Before the installer existed (Milestones 3–8), the host was built and
 registered per user from `native-host/install-host.ps1`, pointing at the
@@ -313,11 +344,9 @@ one. Those scripts are only for working on the host itself now.
   the app should list the channel as "Blocked" within a couple of seconds.
 - To see what a lock adds, start one from the desktop app (Lock → 2h, or
   Custom; see `../app/README.md`), or a shorter one with
-  `sbctl lock 2 --dev-keep-devtools` (see `../service/README.md`).
-  - The app keeps DevTools available during locks for now. Without that,
-    the lock's DevTools lockdown also force-disables Developer mode, which
-    disables this unpacked, not-yet-published extension entirely (see
-    `../service/README.md`).
+  `sbctl lock 2` (see `../service/README.md`).
+  - A lock turns DevTools off in every browser, which also stops an
+    unpacked copy of the extension (see `../service/README.md`).
   - A blocked channel has no remove button in the app until the lock ends.
   - **Allow channel** on a popup still plays the video, and the app lists
     that channel at the top as "Allowed during this lock", with a Block
@@ -333,11 +362,9 @@ one. Those scripts are only for working on the host itself now.
 ## Not done here (later milestones)
 
 - The Declutter selectors are bundled inside the extension package
-  (`data/declutter-selectors.json`), not served by the service — editing the
-  file and reloading the extension is enough while it's loaded unpacked, but
-  a store-published copy (Milestone 0 Phase B) can't be updated that way
-  without a new store release. See `../service/README.md`'s "Not done yet".
+  (`data/declutter-selectors.json`), not served by the service. Editing the
+  file and reloading is enough for an unpacked copy, but the store copies
+  only get a fix through a new store release. See
+  `../service/README.md`'s "Not done yet".
 - A rule changed in the app reaches an open video when you come back to its
   tab, not while you stay on it (see "How a video gets classified").
-- Force-install from a store (so it can't be removed, and installs into
-  every profile) is Milestone 0 Phase B, deferred until you publish.

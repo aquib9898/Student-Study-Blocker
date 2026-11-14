@@ -18,12 +18,6 @@ namespace StudyBlocker.App;
 // to fail.
 public partial class MainWindow : Window
 {
-    // Until the extension is store-installed, a lock's DevTools policy also
-    // switches off Developer mode, which disables the unpacked extension for
-    // the whole lock (see LockRequest.DevKeepDevTools). Set this to false
-    // once the extension is published (Milestone 0 Phase B / 9).
-    private const bool KeepDevToolsWhileExtensionIsUnpacked = true;
-
     private const int MaxLockMinutes = 7 * 24 * 60;
 
     // The Custom slider's stops, in minutes: every hour up to a day, then
@@ -44,6 +38,7 @@ public partial class MainWindow : Window
         (DeclutterOption.TrendingExplore, "Trending / Explore"),
         (DeclutterOption.LiveChat, "Live chat"),
         (DeclutterOption.SubscriptionsFeed, "Subscriptions feed"),
+        (DeclutterOption.Playlists, "Playlists"),
     ];
 
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromSeconds(2) };
@@ -60,6 +55,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        LockInBannerText.Text = LinkProtocol.LockedFromLockIn;
         foreach (var (option, label) in DeclutterLabels)
         {
             var box = new CheckBox { Content = label, Tag = option, Margin = new Thickness(0, 2, 0, 2) };
@@ -126,13 +122,26 @@ public partial class MainWindow : Window
         var locked = lockState.IsLocked;
         var breaking = locked && lockState.Break is not null;
 
+        // A LockIn session holds the rules the way a lock does: the service
+        // refuses every loosening meanwhile. So what it would refuse is
+        // disabled here the same way, and the banner says why.
+        var sessionHeld = status.Link.SessionActive;
+        var held = locked || sessionHeld;
+        LockInBanner.Visibility = sessionHeld ? Visibility.Visible : Visibility.Collapsed;
+        // On LockIn's session-break nothing is enforced (the service's
+        // enforced view), though every setting still shows as it is and still
+        // can't loosen.
+        var sessionBreak = sessionHeld && status.Link.SessionBreak;
+        LockInBannerText.Text = sessionBreak ? LinkProtocol.SessionBreakFromLockIn : LinkProtocol.LockedFromLockIn;
+
         // Open browsers don't notice a policy change by themselves for up to
         // 15 minutes, so every change is pushed to them from here. That covers
         // this window's own changes, a lock starting or ending, and sbctl. The
         // short wait lets the service finish writing a change it made on its
         // own (a lock ending) before the browsers look.
-        // The switch counts too: off, the service lifts the blocked sites.
-        var policies = JsonSerializer.Serialize(new { locked, lockState.DevKeepDevTools, rules.BlockedDomains, rules.ExtensionEnabled });
+        // The switch counts too: off, the service lifts the blocked sites. So
+        // do a LockIn session (its lockdown) and its breaks (nothing applies).
+        var policies = JsonSerializer.Serialize(new { locked, rules.BlockedDomains, rules.ExtensionEnabled, sessionHeld, sessionBreak });
         if (Live && policies != _refreshedPolicies)
         {
             _refreshedPolicies = policies;
@@ -148,14 +157,19 @@ public partial class MainWindow : Window
         LockLabel.Text = locked ? "Extend the lock by" : "Lock for";
         CustomGoButton.Content = locked ? "Extend" : "Lock";
         ShowCustomLength();
-        AllowChannelButton.Visibility = locked ? Visibility.Collapsed : Visibility.Visible;
-        LockedNote.Visibility = locked ? Visibility.Visible : Visibility.Collapsed;
+        AllowChannelButton.Visibility = held ? Visibility.Collapsed : Visibility.Visible;
+        LockedNote.Visibility = held ? Visibility.Visible : Visibility.Collapsed;
+        LockedNote.Text = sessionBreak
+            ? "LockIn's session is on a break, so nothing is blocked until the break ends. You can still only make things stricter, and what you add applies once it ends."
+            : sessionHeld
+                ? "While a LockIn session runs you can only make things stricter: nothing can be removed, unticked or switched off until it ends. Incognito, Guest windows and DevTools are off and Shorts are blocked meanwhile."
+                : "During a lock you can only make things stricter: nothing can be removed or unticked until it ends.";
 
         // A lock always has the extension on, and it can't be switched off
-        // until the lock ends.
+        // until the lock ends, nor while a LockIn session runs.
         ExtensionSwitch.IsChecked = rules.ExtensionEnabled;
         ExtensionSwitch.Content = rules.ExtensionEnabled ? "Extension on" : "Extension off";
-        ExtensionSwitch.IsEnabled = !locked;
+        ExtensionSwitch.IsEnabled = !held;
         ExtensionOffNote.Visibility = rules.ExtensionEnabled ? Visibility.Collapsed : Visibility.Visible;
 
         // Plan §10: breaking early keeps the lock fully on until a countdown
@@ -165,32 +179,37 @@ public partial class MainWindow : Window
         BreakText.Text = breaking ? $"Breaking the lock early: it ends in {Remaining(TimeLeft(lockState))} unless you cancel." : "";
         LockButton.Visibility = breaking ? Visibility.Collapsed : Visibility.Visible;
         if (breaking) LockTimes.Visibility = Visibility.Collapsed;
-        BreakButton.Visibility = locked && !breaking && lockState.DurationMs - lockState.ElapsedMs > status.BreakDelayMs
+        BreakButton.Visibility = locked && !breaking && !sessionHeld && lockState.DurationMs - lockState.ElapsedMs > status.BreakDelayMs
             ? Visibility.Visible
             : Visibility.Collapsed;
 
-        // Once ticked during a lock, a box stays ticked until the lock ends.
+        // Once ticked during a lock (or a LockIn session), a box stays ticked
+        // until it ends.
         EducationOnlyBox.IsChecked = rules.EducationOnly;
-        EducationOnlyBox.IsEnabled = !(locked && rules.EducationOnly);
+        EducationOnlyBox.IsEnabled = !(held && rules.EducationOnly);
+        BlockAdultBox.IsChecked = rules.BlockAdultContent;
+        BlockAdultBox.IsEnabled = !(held && rules.BlockAdultContent);
         foreach (CheckBox box in DeclutterGrid.Children)
         {
             var ticked = rules.Declutter.Contains((DeclutterOption)box.Tag);
             box.IsChecked = ticked;
-            box.IsEnabled = !(locked && ticked);
+            box.IsEnabled = !(held && ticked);
         }
 
         // The lists are rebuilt only when something in them changed, so the
         // regular refresh never disturbs a button under the mouse.
-        var lists = JsonSerializer.Serialize(new { locked, rules.BlockedDomains, channels });
+        var lists = JsonSerializer.Serialize(new { held, rules.BlockedDomains, rules.BlockedApps, channels });
         if (lists == _shownLists) return;
         _shownLists = lists;
-        ShowSites(rules.BlockedDomains, locked);
-        ShowChannels(channels, locked);
+        ShowSites(rules.BlockedDomains, held);
+        ShowApps(rules.BlockedApps, held);
+        ShowChannels(channels, held);
     }
 
     private void ShowSites(IReadOnlyList<string> sites, bool locked)
     {
         SitesList.Children.Clear();
+        SitesExpander.Header = sites.Count == 0 ? "Show blocked sites" : $"Show blocked sites ({sites.Count})";
         if (sites.Count == 0)
         {
             SitesList.Children.Add(EmptyHint("Nothing blocked yet."));
@@ -198,6 +217,19 @@ public partial class MainWindow : Window
         }
         foreach (var site in sites)
             SitesList.Children.Add(Row(site, tag: null, locked ? null : RemoveButton(() => RemoveSiteAsync(site))));
+    }
+
+    private void ShowApps(IReadOnlyList<BlockedApp> apps, bool locked)
+    {
+        AppsList.Children.Clear();
+        AppsExpander.Header = apps.Count == 0 ? "Show blocked apps" : $"Show blocked apps ({apps.Count})";
+        if (apps.Count == 0)
+        {
+            AppsList.Children.Add(EmptyHint("No apps blocked yet."));
+            return;
+        }
+        foreach (var app in apps.OrderBy(a => a.Name, StringComparer.CurrentCultureIgnoreCase))
+            AppsList.Children.Add(Row(app.Name, app.Exe, locked ? null : RemoveButton(() => RemoveAppAsync(app.Exe))));
     }
 
     private void ShowChannels(IReadOnlyList<ChannelRuleInfo> channels, bool locked)
@@ -354,7 +386,7 @@ public partial class MainWindow : Window
         CustomArea.Visibility = Visibility.Collapsed;
         await RunAsync(() => locked
             ? ServiceClient.ExtendLockAsync(minutes)
-            : ServiceClient.StartLockAsync(minutes, KeepDevToolsWhileExtensionIsUnpacked));
+            : ServiceClient.StartLockAsync(minutes));
     }
 
     private async void BreakLock_Click(object sender, RoutedEventArgs e)
@@ -365,6 +397,10 @@ public partial class MainWindow : Window
             return;
         await RunAsync(ServiceClient.BreakLockAsync);
     }
+
+    // The reload arrow: LockIn forgets nothing on its side, the service just stops
+    // honouring its key and leaves a fresh offer. Refused during a LockIn session.
+    private async void ResetLink_Click(object sender, RoutedEventArgs e) => await RunAsync(ServiceClient.ResetLinkAsync);
 
     // "Cancel lock break" only keeps the lock on, so it doesn't ask first.
     private async void CancelBreak_Click(object sender, RoutedEventArgs e) => await RunAsync(ServiceClient.CancelBreakAsync);
@@ -394,6 +430,70 @@ public partial class MainWindow : Window
     {
         var rules = _status!.Lock.Rules;
         return ServiceClient.UpdateRulesAsync(rules with { BlockedDomains = rules.BlockedDomains.Where(s => s != site).ToList() });
+    }
+
+    // The open apps are listed fresh each time the list is opened.
+    private void AppPicker_DropDownOpened(object? sender, EventArgs e)
+    {
+        var chosen = (AppPicker.SelectedItem as AppChoice)?.Exe;
+        var blocked = _status?.Lock.Rules.BlockedApps ?? [];
+        var choices = AppChoice.OpenApps().Where(c => !BlockedApp.Contains(blocked, c.Exe)).ToList();
+        AppPicker.ItemsSource = choices;
+        AppPicker.SelectedItem = choices.FirstOrDefault(c => c.Exe == chosen);
+        if (choices.Count == 0) ShowError("No open apps to block. Use Browse… to choose a program file.");
+    }
+
+    private void AppPicker_SelectionChanged(object sender, SelectionChangedEventArgs e) =>
+        AppPickerPlaceholder.Visibility = AppPicker.SelectedItem is null ? Visibility.Visible : Visibility.Collapsed;
+
+    private async void AddApp_Click(object sender, RoutedEventArgs e)
+    {
+        if (AppPicker.SelectedItem is not AppChoice choice)
+        {
+            ShowError("Choose an open app first, or use Browse… to find its program file.");
+            return;
+        }
+        await AddAppAsync(choice);
+    }
+
+    private async void BrowseApp_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new Microsoft.Win32.OpenFileDialog
+        {
+            Title = "Choose an app to block",
+            Filter = "Programs (*.exe)|*.exe",
+            InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+        };
+        if (dialog.ShowDialog(this) != true) return;
+        if (AppChoice.FromFile(dialog.FileName) is not { } choice)
+        {
+            ShowError("That program is part of Windows, this blocker or LockIn, so it can't be blocked.");
+            return;
+        }
+        await AddAppAsync(choice);
+    }
+
+    private async Task AddAppAsync(AppChoice choice)
+    {
+        if (_status is null) return;
+        var rules = _status.Lock.Rules;
+        if (BlockedApp.Contains(rules.BlockedApps, choice.Exe)) return;
+        var question = $"Block {choice.Name}?\n\nIf it's open, it closes now and anything unsaved in it is lost."
+            + (Holding(_status) ? " You can't unblock it until the lock or LockIn session ends." : "");
+        if (!Ask(question)) return;
+
+        AppPicker.SelectedItem = null;
+        var app = new BlockedApp { Exe = choice.Exe, Name = choice.Name };
+        await RunAsync(() => ServiceClient.UpdateRulesAsync(rules with { BlockedApps = [.. rules.BlockedApps, app] }));
+    }
+
+    private Task RemoveAppAsync(string exe)
+    {
+        var rules = _status!.Lock.Rules;
+        return ServiceClient.UpdateRulesAsync(rules with
+        {
+            BlockedApps = rules.BlockedApps.Where(a => !string.Equals(a.Exe, exe, StringComparison.OrdinalIgnoreCase)).ToList(),
+        });
     }
 
     private async void AllowChannel_Click(object sender, RoutedEventArgs e) => await AddChannelAsync("allow");
@@ -430,7 +530,7 @@ public partial class MainWindow : Window
     {
         if (_status is null) return;
         var on = EducationOnlyBox.IsChecked == true;
-        if (on && _status.Lock.IsLocked && !Ask("Turn on education-only mode?\n\nYou can't turn it off again until the lock ends."))
+        if (on && Holding(_status) && !Ask("Turn on education-only mode?\n\nYou can't turn it off again until the lock or LockIn session ends."))
         {
             EducationOnlyBox.IsChecked = false;
             return;
@@ -439,13 +539,26 @@ public partial class MainWindow : Window
         await RunAsync(() => ServiceClient.UpdateRulesAsync(rules with { EducationOnly = on }));
     }
 
+    private async void BlockAdult_Click(object sender, RoutedEventArgs e)
+    {
+        if (_status is null) return;
+        var on = BlockAdultBox.IsChecked == true;
+        if (on && Holding(_status) && !Ask("Block adult content?\n\nYou can't turn it off again until the lock or LockIn session ends."))
+        {
+            BlockAdultBox.IsChecked = false;
+            return;
+        }
+        var rules = _status.Lock.Rules;
+        await RunAsync(() => ServiceClient.UpdateRulesAsync(rules with { BlockAdultContent = on }));
+    }
+
     private async void Declutter_Click(object sender, RoutedEventArgs e)
     {
         if (_status is null) return;
         var box = (CheckBox)sender;
         var option = (DeclutterOption)box.Tag;
         var hide = box.IsChecked == true;
-        if (hide && _status.Lock.IsLocked && !Ask($"Hide {box.Content} on YouTube?\n\nYou can't show it again until the lock ends."))
+        if (hide && Holding(_status) && !Ask($"Hide {box.Content} on YouTube?\n\nYou can't show it again until the lock or LockIn session ends."))
         {
             box.IsChecked = false;
             return;
@@ -455,6 +568,10 @@ public partial class MainWindow : Window
         if (hide) declutter.Add(option);
         await RunAsync(() => ServiceClient.UpdateRulesAsync(rules with { Declutter = declutter }));
     }
+
+    // Whether the service is holding the rules at their strictest: a lock is
+    // on, or a LockIn session is running.
+    private static bool Holding(ServiceStatus status) => status.Lock.IsLocked || status.Link.SessionActive;
 
     private bool Ask(string question) =>
         MessageBox.Show(this, question, Title, MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes;

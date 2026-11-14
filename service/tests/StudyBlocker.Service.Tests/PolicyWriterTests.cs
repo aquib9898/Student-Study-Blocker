@@ -14,8 +14,8 @@ public class PolicyWriterTests
 
     private PolicyWriter NewWriter() => new(_registry, _disk);
 
-    private static LockState Locked(RuleSet? rules = null, bool devKeepDevTools = false) =>
-        new() { IsLocked = true, DurationMs = 60_000, DevKeepDevTools = devKeepDevTools, Rules = rules ?? new RuleSet() };
+    private static LockState Locked(RuleSet? rules = null) =>
+        new() { IsLocked = true, DurationMs = 60_000, Rules = rules ?? new RuleSet() };
 
     private static LockState Unlocked(RuleSet? rules = null) => new() { Rules = rules ?? new RuleSet() };
 
@@ -39,7 +39,7 @@ public class PolicyWriterTests
     }
 
     [Fact]
-    public void Outside_a_lock_only_the_blocked_sites_apply()
+    public void Outside_a_lock_the_blocked_sites_apply_without_the_lockdown()
     {
         NewWriter().Apply(Unlocked(new RuleSet { BlockedDomains = ["reddit.com"] }));
 
@@ -51,6 +51,29 @@ public class PolicyWriterTests
             Assert.Null(_registry.Get(browser, "DnsOverHttpsMode"));
         }
         Assert.Null(_registry.Get(Chrome, "IncognitoModeAvailability"));
+    }
+
+    [Fact]
+    public void Blocking_adult_content_lists_the_sites_and_forces_safe_search_until_switched_off()
+    {
+        var writer = NewWriter();
+        writer.Apply(Unlocked(new RuleSet { BlockedDomains = ["reddit.com", "pornhub.com"], BlockAdultContent = true }));
+
+        foreach (var browser in new[] { Chrome, Edge, Brave })
+        {
+            var list = _registry.GetList(browser, "URLBlocklist")!;
+            Assert.Equal("reddit.com", list[0]);
+            Assert.Single(list, "pornhub.com");
+            Assert.Contains("xvideos.com", list);
+            Assert.Equal(1, _registry.Get(browser, "ForceGoogleSafeSearch"));
+        }
+        Assert.Equal(2, _registry.Get(Edge, "ForceBingSafeSearch"));
+        Assert.Null(_registry.Get(Chrome, "ForceBingSafeSearch"));
+
+        writer.Apply(Unlocked(new RuleSet { BlockedDomains = ["reddit.com"] }));
+        Assert.Equal(new[] { "reddit.com" }, _registry.GetList(Chrome, "URLBlocklist"));
+        Assert.Null(_registry.Get(Chrome, "ForceGoogleSafeSearch"));
+        Assert.Null(_registry.Get(Edge, "ForceBingSafeSearch"));
     }
 
     [Fact]
@@ -72,15 +95,42 @@ public class PolicyWriterTests
     }
 
     [Fact]
-    public void The_dev_keep_devtools_carveout_skips_only_the_devtools_lockdown()
+    public void The_extension_is_force_installed_in_every_browser_all_the_time()
     {
-        NewWriter().Apply(Locked(devKeepDevTools: true));
+        var writer = NewWriter();
 
-        Assert.Null(_registry.Get(Chrome, "DeveloperToolsAvailability"));
-        Assert.Equal(1, _registry.Get(Chrome, "IncognitoModeAvailability"));
-        Assert.Equal(0, _registry.Get(Chrome, "BrowserGuestModeEnabled"));
-        Assert.Equal("off", _registry.Get(Chrome, "DnsOverHttpsMode"));
-        Assert.Equal(new[] { "youtube.com/shorts" }, _registry.GetList(Chrome, "URLBlocklist"));
+        void AssertForced()
+        {
+            Assert.Equal(new[] { BrowserPolicies.ChromeStoreExtension }, _registry.GetList(Chrome, "ExtensionInstallForcelist"));
+            Assert.Equal(new[] { BrowserPolicies.EdgeStoreExtension }, _registry.GetList(Edge, "ExtensionInstallForcelist"));
+            Assert.Equal(new[] { BrowserPolicies.ChromeStoreExtension }, _registry.GetList(Brave, "ExtensionInstallForcelist"));
+        }
+
+        writer.Apply(Unlocked());
+        AssertForced();
+
+        writer.Apply(Locked());
+        AssertForced();
+
+        writer.Apply(Unlocked(new RuleSet { ExtensionEnabled = false }));
+        AssertForced();
+    }
+
+    [Fact]
+    public void Restoring_everything_also_lifts_the_forced_install()
+    {
+        _registry.SetList(Edge, "URLBlocklist", "set-by-someone-else.com");
+        var writer = NewWriter();
+        writer.Apply(Unlocked(new RuleSet { BlockedDomains = ["reddit.com"] }));
+
+        writer.RestoreAll();
+
+        foreach (var browser in new[] { Chrome, Edge, Brave })
+            Assert.Null(_registry.GetList(browser, "ExtensionInstallForcelist"));
+        Assert.Equal(new[] { "set-by-someone-else.com" }, _registry.GetList(Edge, "URLBlocklist"));
+        Assert.Null(_registry.GetList(Chrome, "URLBlocklist"));
+        // Nothing is left on the ledger, so a later restore changes nothing.
+        Assert.Empty(NewWriter().RestoreAll());
     }
 
     [Fact]
@@ -181,5 +231,72 @@ public class PolicyWriterTests
         NewWriter().Apply(Unlocked());
 
         Assert.Equal(0, _registry.Get(Edge, "InPrivateModeAvailability"));
+    }
+
+    // The user's choice, 2026-10-25: a LockIn session-Lock brings a lock's
+    // browser lockdown and Shorts block, and they go when it ends.
+    [Fact]
+    public void A_LockIn_session_brings_the_lockdown_and_takes_it_away_again()
+    {
+        _registry.Set(Edge, "InPrivateModeAvailability", 0);
+        var writer = NewWriter();
+        writer.Apply(Unlocked(new RuleSet { BlockedDomains = ["reddit.com"] }), sessionLock: true);
+
+        Assert.Equal(1, _registry.Get(Chrome, "IncognitoModeAvailability"));
+        Assert.Equal(1, _registry.Get(Edge, "InPrivateModeAvailability"));
+        foreach (var browser in new[] { Chrome, Edge, Brave })
+        {
+            Assert.Equal(0, _registry.Get(browser, "BrowserGuestModeEnabled"));
+            Assert.Equal(2, _registry.Get(browser, "DeveloperToolsAvailability"));
+            Assert.Equal(new[] { "reddit.com", "youtube.com/shorts" }, _registry.GetList(browser, "URLBlocklist"));
+        }
+
+        writer.Apply(Unlocked(new RuleSet { BlockedDomains = ["reddit.com"] }));
+
+        Assert.Null(_registry.Get(Chrome, "IncognitoModeAvailability"));
+        Assert.Equal(0, _registry.Get(Edge, "InPrivateModeAvailability"));
+        foreach (var browser in new[] { Chrome, Edge, Brave })
+        {
+            Assert.Null(_registry.Get(browser, "DeveloperToolsAvailability"));
+            Assert.Equal(new[] { "reddit.com" }, _registry.GetList(browser, "URLBlocklist"));
+        }
+    }
+
+    // The user's "special state": on a LockIn session-break nothing is
+    // written, a lock's lockdown included, and all of it comes back after.
+    [Fact]
+    public void On_a_session_break_nothing_applies_even_under_a_lock()
+    {
+        var store = new LockStateStore(new InMemoryStateStore(), new TrustedClock(() => 1_000));
+        store.UpdateRules(new RuleSet { BlockedDomains = ["reddit.com"], BlockAdultContent = true });
+        store.StartLock(TimeSpan.FromHours(1));
+        store.StartSession(TimeSpan.FromHours(2));
+        var writer = NewWriter();
+        void Enforce()
+        {
+            var (state, sessionLock) = store.Enforcement;
+            writer.Apply(state, sessionLock);
+        }
+
+        Enforce();
+        Assert.Equal(2, _registry.Get(Chrome, "DeveloperToolsAvailability"));
+
+        store.BreakSession();
+        Enforce();
+        Assert.Null(_registry.Get(Chrome, "IncognitoModeAvailability"));
+        foreach (var browser in new[] { Chrome, Edge, Brave })
+        {
+            Assert.Null(_registry.GetList(browser, "URLBlocklist"));
+            Assert.Null(_registry.Get(browser, "DeveloperToolsAvailability"));
+            Assert.Null(_registry.Get(browser, "ForceGoogleSafeSearch"));
+            Assert.NotNull(_registry.GetList(browser, "ExtensionInstallForcelist"));
+        }
+
+        store.StartSession(TimeSpan.FromHours(2)); // the break is over
+        Enforce();
+        Assert.Equal(1, _registry.Get(Chrome, "IncognitoModeAvailability"));
+        Assert.Equal(1, _registry.Get(Chrome, "ForceGoogleSafeSearch"));
+        Assert.Contains("reddit.com", _registry.GetList(Chrome, "URLBlocklist")!);
+        Assert.Contains("youtube.com/shorts", _registry.GetList(Chrome, "URLBlocklist")!);
     }
 }

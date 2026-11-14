@@ -20,24 +20,12 @@ public sealed class ProtectedStore : IStateStore
         LockDownAcl(_root);
     }
 
-    public T? Read<T>(string fileName) where T : class
-    {
-        var path = Path.Combine(_root, fileName);
-        if (!File.Exists(path)) return null;
-        using var stream = File.OpenRead(path);
-        return JsonSerializer.Deserialize<T>(stream);
-    }
+    // See DurableJsonFile for how a power cut mid-write is survived.
+    public T? Read<T>(string fileName) where T : class =>
+        DurableJsonFile.Read<T>(Path.Combine(_root, fileName));
 
-    public void Write<T>(string fileName, T value)
-    {
-        var path = Path.Combine(_root, fileName);
-        var tmpPath = path + ".tmp";
-        using (var stream = File.Create(tmpPath))
-        {
-            JsonSerializer.Serialize(stream, value, JsonOptions);
-        }
-        File.Move(tmpPath, path, overwrite: true);
-    }
+    public void Write<T>(string fileName, T value) =>
+        DurableJsonFile.Write(Path.Combine(_root, fileName), value, JsonOptions);
 
     private static void LockDownAcl(string path)
     {

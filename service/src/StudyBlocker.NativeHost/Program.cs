@@ -25,7 +25,9 @@ try
 {
     var ipcRequest = JsonSerializer.Deserialize<IpcRequest>(request)
         ?? throw new JsonException("empty request");
-    response = await IpcClient.SendAsync(ipcRequest);
+    // Only the extension starts this host, so the service is told so: it
+    // then answers with what is enforced (see IpcRequest.From).
+    response = await IpcClient.SendAsync(ipcRequest with { From = IpcProtocol.FromExtension });
 }
 catch (Exception ex) when (ex is JsonException or IOException or TimeoutException)
 {

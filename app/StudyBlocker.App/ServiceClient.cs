@@ -24,12 +24,13 @@ public static class ServiceClient
 
     public static Task UpdateRulesAsync(RuleSet rules) => SendAsync("update-rules", rules);
 
-    public static Task StartLockAsync(int minutes, bool devKeepDevTools) =>
-        SendAsync("start-lock", new LockRequest { Minutes = minutes, DevKeepDevTools = devKeepDevTools });
+    public static Task StartLockAsync(int minutes) => SendAsync("start-lock", new LockRequest { Minutes = minutes });
 
     public static Task ExtendLockAsync(int minutes) => SendAsync("extend-lock", new LockRequest { Minutes = minutes });
 
     public static Task BreakLockAsync() => SendAsync("break-lock", (object?)null);
+
+    public static Task ResetLinkAsync() => SendAsync("reset-link", (object?)null);
 
     public static Task CancelBreakAsync() => SendAsync("cancel-break", (object?)null);
 
