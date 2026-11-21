@@ -8,7 +8,7 @@
     <!-- Task Manager shows this for the service's process. -->
     <AssemblyTitle>Smart Study Distraction Blocker service</AssemblyTitle>
     <Product>Smart Study Distraction Blocker</Product>
-    <Version>0.4.4</Version>
+    <Version>0.5.2</Version>
   </PropertyGroup>
 
   <ItemGroup>
@@ -19,6 +19,13 @@
 
   <ItemGroup>
     <ProjectReference Include="..\StudyBlocker.Common\StudyBlocker.Common.csproj" />
+  </ItemGroup>
+
+  <!-- The Microsoft Store version's uninstall clean-up (Packaging\PackagedInstall.cs):
+       shipped next to the service, copied out to ProgramData at start. -->
+  <ItemGroup>
+    <None Update="Packaging\cleanup.cmd" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="Packaging\cleanup-task.xml" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

@@ -1,0 +1,2 @@
+2026-11-21T08:53:01.6306342+05:30 service gone: removing the app's settings
+2026-11-21T08:53:01.7962596+05:30 task deleted; removing its own folder

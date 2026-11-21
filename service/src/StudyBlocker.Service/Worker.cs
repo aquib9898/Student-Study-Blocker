@@ -265,6 +265,13 @@ public sealed class Worker : BackgroundService
                 case "override-end-lock":
                     _links.OverrideEndLock(request.Secret, sid);
                     break;
+
+                // Habit Builder's scheduled lock (LockIn, 2026-11-18).
+                case "schedule-set":
+                    _links.SetSchedule(request.Secret, sid, Payload<ScheduleSetRequest>(request));
+                    break;
+                case "schedule-report":
+                    return IpcResponse.Success(_links.ScheduleReport(request.Secret, sid, Payload<ScheduleReportRequest>(request)));
                 default:
                     return IpcResponse.Failure($"unknown request type '{request.Type}'");
             }
@@ -294,8 +301,9 @@ public sealed class Worker : BackgroundService
     };
 
     // The channel lists follow the same ratchet as the rules: held by a lock,
-    // and by a LockIn session.
-    private bool HoldsRatchet() => _lockStore.Current.IsLocked || _lockStore.SessionActive;
+    // by a LockIn session, and by LockIn's scheduled lock.
+    private bool HoldsRatchet() =>
+        _lockStore.Current.IsLocked || _lockStore.SessionActive || _lockStore.ScheduleInForce || _lockStore.AdvancedInForce;
 
     private static T Payload<T>(IpcRequest request) where T : class =>
         request.Payload?.Deserialize<T>() ?? throw new ArgumentException($"'{request.Type}' needs a payload");

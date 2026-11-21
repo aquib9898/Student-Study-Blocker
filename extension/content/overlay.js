@@ -5,6 +5,28 @@
 // classifier or service logic of its own, same rule as youtube.js.
 
 (() => {
+  // The colours of what this draws on YouTube: the block screen, the
+  // grey-zone popup and the miniplayer notice. The popup and the blocked-site
+  // page take theirs from theme.css; these can't, since they're drawn inside
+  // YouTube's own page. Same palette as theme.css.
+  const THEME = {
+    // Palette (Tinta, 2026-11-21): neutral off-white screen, dominant
+    // blue, coral as the complementary "blocked" accent. Text pairs WCAG AA+.
+    screen: "rgba(246, 247, 249, 0.97)", // behind the block screen and popup
+    glow: "transparent",               // no glow
+    text: "#1e2329",                   // charcoal
+    textSoft: "#4a525c",
+    mark: "#2563c9",                   // the logo (brand blue)
+    markGlow: "transparent",
+    allow: "#2563c9",                  // Allow channel (brand blue)
+    allowText: "#ffffff",              // 5.7:1
+    block: "#b24d39",                  // Block channel (coral-brick)
+    blockText: "#ffffff",              // 5.2:1
+    notice: "#ffffff",                 // the miniplayer notice
+    noticeBorder: "#e3e6eb",
+    shadow: "rgba(30, 35, 41, 0.16)",
+  };
+
   const OVERLAY_ID = "sb-overlay-root";
 
   function hide() {
@@ -22,8 +44,8 @@
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
-      background: "rgba(0, 0, 0, 0.9)",
-      color: "#fff",
+      background: THEME.screen,
+      color: THEME.text,
       font: "15px/1.5 system-ui, sans-serif",
       textAlign: "center",
     });
@@ -43,12 +65,11 @@
   // as a PNG data URL; anything else is left out rather than put in the page.
   function showBlockScreen(reason, logo) {
     const mark = typeof logo === "string" && /^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(logo)
-      ? `<div style="width:96px;height:96px;margin:0 auto 20px;background:#fff;-webkit-mask:url(${logo}) center/contain no-repeat;mask:url(${logo}) center/contain no-repeat"></div>`
+      ? `<div style="filter:drop-shadow(0 0 12px ${THEME.markGlow})"><div style="width:96px;height:96px;margin:0 auto 20px;background:${THEME.mark};-webkit-mask:url(${logo}) center/contain no-repeat;mask:url(${logo}) center/contain no-repeat"></div></div>`
       : "";
     render(`
       ${mark}
-      <div style="font-size:20px;font-weight:600;margin-bottom:10px">Blocked by Smart Study Distraction Blocker</div>
-      <div style="opacity:0.75;font-size:13px">${escapeHtml(reason || "classified as a distraction")}</div>
+      <div style="font-size:20px;font-weight:600">Blocked by Smart Study Distraction Blocker</div>
     `);
   }
 
@@ -64,19 +85,48 @@
     const root = render(`
       <div style="font-size:34px;margin-bottom:10px">&#129300;</div>
       <div style="font-size:18px;font-weight:600;margin-bottom:10px">Is this video study, or a distraction?</div>
-      <div style="opacity:0.75;font-size:13px;margin-bottom:16px">${escapeHtml(reason || "couldn't classify this one confidently")}</div>
+      <div style="color:${THEME.textSoft};font-size:13px;margin-bottom:16px">${escapeHtml(reason || "couldn't classify this one confidently")}</div>
       ${channelId
         ? `<div style="font-size:14px;margin-bottom:16px">Your answer applies to every video from <b>${channel}</b>.</div>
            <div style="display:flex;gap:12px;justify-content:center">
-             <button id="sb-allow" style="padding:10px 18px;font:inherit;cursor:pointer;border:0;border-radius:6px;background:#2e7d32;color:#fff">Allow channel</button>
-             <button id="sb-block" style="padding:10px 18px;font:inherit;cursor:pointer;border:0;border-radius:6px;background:#c62828;color:#fff">Block channel</button>
+             <button id="sb-allow" style="padding:10px 18px;font:inherit;cursor:pointer;border:0;border-radius:6px;background:${THEME.allow};color:${THEME.allowText}">Allow channel</button>
+             <button id="sb-block" style="padding:10px 18px;font:inherit;cursor:pointer;border:0;border-radius:6px;background:${THEME.block};color:${THEME.blockText}">Block channel</button>
            </div>`
-        : `<div style="opacity:0.6;font-size:12px">No channel information on this video, so there's nothing to save a decision against. Staying paused.</div>`
+        : `<div style="color:${THEME.textSoft};font-size:12px">No channel information on this video, so there's nothing to save a decision against. Staying paused.</div>`
       }
     `);
     root.querySelector("#sb-allow")?.addEventListener("click", () => onAnswer("allow"));
     root.querySelector("#sb-block")?.addEventListener("click", () => onAnswer("block"));
   }
 
-  window.SBOverlay = { showBlockScreen, showGreyPopup, hide };
+  // A small notice for a video that was playing in the miniplayer (queue):
+  // it has been stopped, and the page underneath stays usable, so this must
+  // not cover it the way the block screen does. Removes itself.
+  const NOTICE_ID = "sb-notice-root";
+  function showNotice(text) {
+    document.getElementById(NOTICE_ID)?.remove();
+    const root = document.createElement("div");
+    root.id = NOTICE_ID;
+    Object.assign(root.style, {
+      position: "fixed",
+      left: "16px",
+      bottom: "16px",
+      maxWidth: "360px",
+      zIndex: "2147483647",
+      padding: "12px 16px",
+      borderRadius: "10px",
+      background: THEME.notice,
+      border: `1px solid ${THEME.noticeBorder}`,
+      color: THEME.text,
+      font: "13px/1.45 system-ui, sans-serif",
+      boxShadow: `0 4px 16px ${THEME.shadow}`,
+    });
+    root.innerHTML =
+      `<div style="font-weight:600">Blocked by Smart Study Distraction Blocker</div>` +
+      (text ? `<div style="color:${THEME.textSoft};margin-top:4px">${escapeHtml(text)}</div>` : "");
+    document.documentElement.appendChild(root);
+    setTimeout(() => root.remove(), 8000);
+  }
+
+  window.SBOverlay = { showBlockScreen, showGreyPopup, showNotice, hide };
 })();

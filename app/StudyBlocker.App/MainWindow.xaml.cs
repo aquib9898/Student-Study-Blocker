@@ -28,18 +28,40 @@ public partial class MainWindow : Window
         .. Enumerable.Range(1, 24).Select(step => (24 + step * 6) * 60),
     ];
 
-    private static readonly (DeclutterOption Option, string Label)[] DeclutterLabels =
+    // One switch of the "Hide on YouTube" list. A sub-option sits indented
+    // under its parent. Covered: the parent hides the whole area it's in, so
+    // while the parent is on it shows as on (and can't be switched) whatever
+    // its own setting, which comes back when the parent goes off.
+    private sealed record DeclutterItem(DeclutterOption Option, string Label, DeclutterOption? Parent = null, bool Covered = false);
+
+    // The user's list and wording (2026-11-21), in their order.
+    private static readonly DeclutterItem[] DeclutterItems =
     [
-        (DeclutterOption.HomeFeed, "Home feed"),
-        (DeclutterOption.RecommendedVideos, "Recommended videos"),
-        (DeclutterOption.EndScreenSuggestions, "End-screen suggestions"),
-        (DeclutterOption.Autoplay, "Autoplay"),
-        (DeclutterOption.Comments, "Comments"),
-        (DeclutterOption.TrendingExplore, "Trending / Explore"),
-        (DeclutterOption.LiveChat, "Live chat"),
-        (DeclutterOption.SubscriptionsFeed, "Subscriptions feed"),
-        (DeclutterOption.Playlists, "Playlists"),
+        new(DeclutterOption.HomeFeed, "Hide home feed"),
+        new(DeclutterOption.RedirectHomeToSubscriptions, "Redirect to Subscriptions", DeclutterOption.HomeFeed),
+        new(DeclutterOption.VideoSidebar, "Hide video sidebar"),
+        new(DeclutterOption.RecommendedVideos, "Hide recommended", DeclutterOption.VideoSidebar, Covered: true),
+        new(DeclutterOption.LiveChat, "Hide live chat", DeclutterOption.VideoSidebar, Covered: true),
+        new(DeclutterOption.Playlists, "Hide playlist", DeclutterOption.VideoSidebar, Covered: true),
+        new(DeclutterOption.Fundraiser, "Hide fundraiser", DeclutterOption.VideoSidebar, Covered: true),
+        new(DeclutterOption.EndScreenSuggestions, "Hide end screen feed"),
+        new(DeclutterOption.EndScreenCards, "Hide end screen cards"),
+        new(DeclutterOption.Shorts, "Hide Shorts"),
+        new(DeclutterOption.Comments, "Hide comments"),
+        new(DeclutterOption.Mixes, "Hide mixes"),
+        new(DeclutterOption.MerchTicketsOffers, "Hide merch, tickets, offers"),
+        new(DeclutterOption.VideoInfo, "Hide video info"),
+        new(DeclutterOption.TopHeader, "Hide top header"),
+        new(DeclutterOption.Notifications, "Hide notifications", DeclutterOption.TopHeader, Covered: true),
+        new(DeclutterOption.InaptSearchResults, "Hide inapt search results"),
+        new(DeclutterOption.TrendingExplore, "Hide explore, trending"),
+        new(DeclutterOption.MoreFromYouTube, "Hide more from YouTube"),
+        new(DeclutterOption.SubscriptionsFeed, "Hide subscriptions"),
+        new(DeclutterOption.Autoplay, "Disable autoplay"),
+        new(DeclutterOption.Annotations, "Disable annotations"),
     ];
+
+    private readonly Dictionary<DeclutterOption, CheckBox> _declutterBoxes = [];
 
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromSeconds(2) };
     private ServiceStatus? _status;
@@ -56,12 +78,7 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         LockInBannerText.Text = LinkProtocol.LockedFromLockIn;
-        foreach (var (option, label) in DeclutterLabels)
-        {
-            var box = new CheckBox { Content = label, Tag = option, Margin = new Thickness(0, 2, 0, 2) };
-            box.Click += Declutter_Click;
-            DeclutterGrid.Children.Add(box);
-        }
+        BuildDeclutterList();
         CustomSlider.Maximum = CustomLengths.Length - 1;
         ShowCustomLength();
         _timer.Tick += async (_, _) => await RefreshAsync();
@@ -126,13 +143,22 @@ public partial class MainWindow : Window
         // refuses every loosening meanwhile. So what it would refuse is
         // disabled here the same way, and the banner says why.
         var sessionHeld = status.Link.SessionActive;
-        var held = locked || sessionHeld;
-        LockInBanner.Visibility = sessionHeld ? Visibility.Visible : Visibility.Collapsed;
+        // LockIn's Habit Builder scheduled lock holds the same way, and a
+        // session break doesn't lift it.
+        var scheduleHeld = status.Link.ScheduleInForce;
+        // The Advanced lock is above all of them, breaks included.
+        var advancedHeld = status.Link.AdvancedInForce;
+        var held = locked || sessionHeld || scheduleHeld || advancedHeld;
+        LockInBanner.Visibility = sessionHeld || scheduleHeld || advancedHeld ? Visibility.Visible : Visibility.Collapsed;
         // On LockIn's session-break nothing is enforced (the service's
         // enforced view), though every setting still shows as it is and still
         // can't loosen.
-        var sessionBreak = sessionHeld && status.Link.SessionBreak;
-        LockInBannerText.Text = sessionBreak ? LinkProtocol.SessionBreakFromLockIn : LinkProtocol.LockedFromLockIn;
+        var sessionBreak = sessionHeld && status.Link.SessionBreak && !scheduleHeld && !advancedHeld;
+        LockInBannerText.Text = advancedHeld
+            ? LinkProtocol.AdvancedLockFromLockIn
+            : sessionBreak
+                ? LinkProtocol.SessionBreakFromLockIn
+                : sessionHeld ? LinkProtocol.LockedFromLockIn : LinkProtocol.ScheduledLockFromLockIn;
 
         // Open browsers don't notice a policy change by themselves for up to
         // 15 minutes, so every change is pushed to them from here. That covers
@@ -141,7 +167,7 @@ public partial class MainWindow : Window
         // own (a lock ending) before the browsers look.
         // The switch counts too: off, the service lifts the blocked sites. So
         // do a LockIn session (its lockdown) and its breaks (nothing applies).
-        var policies = JsonSerializer.Serialize(new { locked, rules.BlockedDomains, rules.ExtensionEnabled, sessionHeld, sessionBreak });
+        var policies = JsonSerializer.Serialize(new { locked, rules.BlockedDomains, rules.ExtensionEnabled, sessionHeld, sessionBreak, scheduleHeld, advancedHeld });
         if (Live && policies != _refreshedPolicies)
         {
             _refreshedPolicies = policies;
@@ -158,12 +184,12 @@ public partial class MainWindow : Window
         CustomGoButton.Content = locked ? "Extend" : "Lock";
         ShowCustomLength();
         AllowChannelButton.Visibility = held ? Visibility.Collapsed : Visibility.Visible;
-        LockedNote.Visibility = held ? Visibility.Visible : Visibility.Collapsed;
+        // A plain lock shows no note (the user's call, 2026-11-21); only LockIn's
+        // session states explain themselves, since they change what is blocked.
+        LockedNote.Visibility = held && (sessionBreak || sessionHeld) ? Visibility.Visible : Visibility.Collapsed;
         LockedNote.Text = sessionBreak
             ? "LockIn's session is on a break, so nothing is blocked until the break ends. You can still only make things stricter, and what you add applies once it ends."
-            : sessionHeld
-                ? "While a LockIn session runs you can only make things stricter: nothing can be removed, unticked or switched off until it ends. Incognito, Guest windows and DevTools are off and Shorts are blocked meanwhile."
-                : "During a lock you can only make things stricter: nothing can be removed or unticked until it ends.";
+            : "While a LockIn session runs you can only make things stricter: nothing can be removed, unticked or switched off until it ends. Incognito, Guest windows and DevTools are off and Shorts are blocked meanwhile.";
 
         // A lock always has the extension on, and it can't be switched off
         // until the lock ends, nor while a LockIn session runs.
@@ -189,11 +215,13 @@ public partial class MainWindow : Window
         EducationOnlyBox.IsEnabled = !(held && rules.EducationOnly);
         BlockAdultBox.IsChecked = rules.BlockAdultContent;
         BlockAdultBox.IsEnabled = !(held && rules.BlockAdultContent);
-        foreach (CheckBox box in DeclutterGrid.Children)
+        foreach (var item in DeclutterItems)
         {
-            var ticked = rules.Declutter.Contains((DeclutterOption)box.Tag);
-            box.IsChecked = ticked;
-            box.IsEnabled = !(held && ticked);
+            var box = _declutterBoxes[item.Option];
+            var ticked = rules.Declutter.Contains(item.Option);
+            var covered = item.Covered && item.Parent is { } parent && rules.Declutter.Contains(parent);
+            box.IsChecked = ticked || covered;
+            box.IsEnabled = !covered && !(held && ticked);
         }
 
         // The lists are rebuilt only when something in them changed, so the
@@ -552,13 +580,78 @@ public partial class MainWindow : Window
         await RunAsync(() => ServiceClient.UpdateRulesAsync(rules with { BlockAdultContent = on }));
     }
 
+    // The switches, in DeclutterItems' order. A switch with sub-options gets
+    // a "+" at the end of its row; its sub-options, in an indented block with
+    // a line down its left, stay folded away until it's clicked ("−" folds
+    // them again). Folded every time the window opens, as in the extension
+    // (the user's request, 2026-11-21).
+    private void BuildDeclutterList()
+    {
+        foreach (var item in DeclutterItems.Where(i => i.Parent is null))
+        {
+            var box = DeclutterSwitch(item);
+            var children = DeclutterItems.Where(i => i.Parent == item.Option).ToList();
+            if (children.Count == 0)
+            {
+                DeclutterList.Children.Add(box);
+                continue;
+            }
+
+            var subOptions = new StackPanel();
+            foreach (var child in children) subOptions.Children.Add(DeclutterSwitch(child));
+            var rail = new Border
+            {
+                BorderThickness = new Thickness(2, 0, 0, 0),
+                Margin = new Thickness(19, 0, 0, 2),
+                Padding = new Thickness(16, 0, 0, 0),
+                Child = subOptions,
+                Visibility = Visibility.Collapsed,
+            };
+            rail.SetResourceReference(Border.BorderBrushProperty, "ControlStrokeColorDefaultBrush");
+
+            var expand = new Button { Style = (Style)FindResource("ExpandButton"), VerticalAlignment = VerticalAlignment.Center };
+            void Show(bool open)
+            {
+                rail.Visibility = open ? Visibility.Visible : Visibility.Collapsed;
+                expand.Content = open ? "−" : "+";
+                var tip = $"{(open ? "Hide" : "Show")} the options under {item.Label.ToLowerInvariant()}";
+                expand.ToolTip = tip;
+                System.Windows.Automation.AutomationProperties.SetName(expand, tip);
+            }
+            Show(false);
+            expand.Click += (_, _) => Show(rail.Visibility != Visibility.Visible);
+
+            var row = new DockPanel();
+            DockPanel.SetDock(expand, Dock.Right);
+            row.Children.Add(expand);
+            row.Children.Add(box);
+            DeclutterList.Children.Add(row);
+            DeclutterList.Children.Add(rail);
+        }
+    }
+
+    private CheckBox DeclutterSwitch(DeclutterItem item)
+    {
+        var box = new CheckBox
+        {
+            Content = item.Label,
+            Tag = item.Option,
+            Style = (Style)FindResource("Switch"),
+            Margin = new Thickness(0, 4, 0, 4),
+            HorizontalAlignment = HorizontalAlignment.Left,
+        };
+        box.Click += Declutter_Click;
+        _declutterBoxes[item.Option] = box;
+        return box;
+    }
+
     private async void Declutter_Click(object sender, RoutedEventArgs e)
     {
         if (_status is null) return;
         var box = (CheckBox)sender;
         var option = (DeclutterOption)box.Tag;
         var hide = box.IsChecked == true;
-        if (hide && Holding(_status) && !Ask($"Hide {box.Content} on YouTube?\n\nYou can't show it again until the lock or LockIn session ends."))
+        if (hide && Holding(_status) && !Ask($"{box.Content} on YouTube?\n\nYou can't turn it off again until the lock or LockIn session ends."))
         {
             box.IsChecked = false;
             return;
@@ -570,8 +663,9 @@ public partial class MainWindow : Window
     }
 
     // Whether the service is holding the rules at their strictest: a lock is
-    // on, or a LockIn session is running.
-    private static bool Holding(ServiceStatus status) => status.Lock.IsLocked || status.Link.SessionActive;
+    // on, a LockIn session is running, or LockIn's scheduled lock is in force.
+    private static bool Holding(ServiceStatus status) =>
+        status.Lock.IsLocked || status.Link.SessionActive || status.Link.ScheduleInForce || status.Link.AdvancedInForce;
 
     private bool Ask(string question) =>
         MessageBox.Show(this, question, Title, MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes;

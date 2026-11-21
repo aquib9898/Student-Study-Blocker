@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "SSDB MSIX host test",
+  "version": "1.0",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAn0hkviFATYcHYnUoUB5+3XfgpWDaVhld88jsMZzhQURClsyVT+ofYBuYmoi614OAsKCu/C0acjLEV/+AkflCAtWD4BsLwHK9LRyrcXohV+guC0ilAYSBosBqcGFOUBlJk2Xn9RNgVva4vHx9ujIeBsR3mMKApcVBVE2jrQaWkVRraVKsWQqfFybTH1qzpzparsn/uIooZ30fDhIWRptzzinRKtsU/JP9JgCwpQo46hJai7ofzD/B+8XfB8bMpeGXnOv76IQ9wCplu86sq5L/bvDanRmcBaxyWKqXMYRE+121Wa4TRv2dz1GbyJbZ8+ZNvjcaOrV7ZrDdXmkmLFU9zwIDAQAB",
+  "permissions": [
+    "nativeMessaging"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  }
+}

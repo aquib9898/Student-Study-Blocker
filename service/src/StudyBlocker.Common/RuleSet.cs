@@ -23,6 +23,30 @@ public enum DeclutterOption
     // and in the miniplayer (the user's request, 2026-11-09). The playlist's
     // own page stays, so the playlist is still reachable.
     Playlists,
+
+    // Added 2026-11-21 at the user's request, to match the YouTube
+    // "unhook" list they use (names in the app are theirs). Appended, never
+    // inserted: the values are stored by name, but keep the old ones first.
+    // Each one only hides, except two that also act on the page (see
+    // extension/content/declutter.js): RedirectHomeToSubscriptions sends
+    // youtube.com/ to /feed/subscriptions, and Autoplay (above) switches the
+    // player's autoplay off as well as hiding its switch.
+    RedirectHomeToSubscriptions,
+    // The whole column beside a video. Covers RecommendedVideos, LiveChat,
+    // Playlists and Fundraiser, which stay tickable on their own.
+    VideoSidebar,
+    Fundraiser,
+    EndScreenCards,
+    Shorts,
+    Mixes,
+    MerchTicketsOffers,
+    VideoInfo,
+    // The bar across the top (logo, search, bell). Covers Notifications.
+    TopHeader,
+    Notifications,
+    InaptSearchResults,
+    MoreFromYouTube,
+    Annotations,
 }
 
 // The user's profile: what they chose to block, edited from the desktop app.

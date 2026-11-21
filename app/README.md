@@ -89,9 +89,23 @@ dotnet run --project D:\Student-Study-Blocker\app\StudyBlocker.App
   - Your answers to the grey-zone popup on YouTube show up in the same list.
 - **Education-only mode**: a video only plays if its title or tags contain
   a study word (see `../service/README.md`).
-- **Hide on YouTube**: the 9 Declutter options. **Playlists** hides the
-  playlist panel next to a video watched from a playlist (and in the
-  miniplayer); unticked, it shows as usual.
+- **Hide on YouTube**: 22 on/off switches, the user's list and wording
+  (2026-11-21): home feed (+ Redirect to Subscriptions), video sidebar
+  (+ recommended, live chat, playlist, fundraiser), end screen feed, end
+  screen cards, Shorts, comments, mixes, merch/tickets/offers, video info,
+  top header (+ notifications), inapt search results, explore/trending,
+  more from YouTube, subscriptions, Disable autoplay, Disable annotations.
+  - A switch with sub-options (home feed, video sidebar, top header) has a
+    "+" at the end of its row; its sub-options stay folded until it's
+    clicked ("−" folds them again), folded every time the window opens,
+    as in the extension's popup.
+  - A sub-option sits indented under its parent. The sidebar's and the top
+    header's sub-options are parts of what the parent hides, so while the
+    parent is on they show as on and can't be switched; their own setting
+    comes back when the parent goes off. Redirect to Subscriptions is a
+    separate setting (it works with or without the home feed hidden).
+  - **Playlist** hides the playlist panel next to a video watched from a
+    playlist (and in the miniplayer); off, it shows as usual.
 
 During a lock the window only offers what the service would accept, and the
 service refuses the rest regardless:

@@ -1,0 +1,33 @@
+{
+  "manifest_version": 3,
+  "name": "Smart Study Distraction Blocker (colored)",
+  "version": "0.12.0",
+  "description": "Blocks YouTube distractions and listed websites while you study. Install the SSDB Windows app to make your lock truly unbreakable.",
+  "minimum_chrome_version": "116",
+  "permissions": ["nativeMessaging", "storage", "tabs", "alarms", "webNavigation", "declarativeNetRequest"],
+  "host_permissions": ["*://*.youtube.com/*"],
+  "background": { "service_worker": "background.js" },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Smart Study Distraction Blocker"
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*.youtube.com/*"],
+      "js": ["content/shorts-guard.js", "content/overlay.js", "content/youtube.js", "content/declutter.js"],
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["*://*.youtube.com/*"],
+      "js": ["content/page-bridge.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    }
+  ]
+}

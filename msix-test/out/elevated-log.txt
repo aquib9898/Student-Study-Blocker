@@ -1,0 +1,76 @@
+﻿**********************
+Windows PowerShell transcript start
+Start time: 20261121083008
+Username: AQUIB\noors
+RunAs User: AQUIB\noors
+Configuration Name: 
+Machine: AQUIB (Microsoft Windows NT 10.0.26200.0)
+Host Application: C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe -NoProfile -ExecutionPolicy Bypass -File D:\Student-Study-Blocker\msix-test\run-test.ps1
+Process ID: 25564
+PSVersion: 5.1.26100.9818
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.26100.9818
+BuildVersion: 10.0.26100.9818
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+This checking shell has package identity: False
+=== 1. Trust the test certificate and install the MSIX ===
+Installed.
+
+
+PackageFullName : SSDB.MsixProbe_1.0.0.0_x64__1z9d3s4827c4g
+InstallLocation : C:\Program Files\WindowsApps\SSDB.MsixProbe_1.0.0.0_x64__1z9d3s4827c4g
+=== 2. The packaged service ===
+
+
+Name      : SSDBMsixProbe
+Status    : Running
+StartType : Automatic
+[SC] QueryServiceConfig SUCCESS
+
+SERVICE_NAME: SSDBMsixProbe
+        TYPE               : 210  WIN32_PACKAGED_PROCESS  
+        START_TYPE         : 2   AUTO_START
+        ERROR_CONTROL      : 0   IGNORE
+        BINARY_PATH_NAME   : "C:\Program Files\WindowsApps\SSDB.MsixProbe_1.0.0.0_x64__1z9d3s4827c4g\Probe.exe"
+        LOAD_ORDER_GROUP   : 
+        TAG                : 0
+        DISPLAY_NAME       : SSDB MSIX Probe
+        DEPENDENCIES       : staterepository
+        SERVICE_START_NAME : LocalSystem
+--- What the service itself reported ---
+time: 2026-11-21T08:30:14.6836685+05:30
+account: NT AUTHORITY\SYSTEM
+package identity: SSDB.MsixProbe_1.0.0.0_x64__1z9d3s4827c4g
+exe: C:\Program Files\WindowsApps\SSDB.MsixProbe_1.0.0.0_x64__1z9d3s4827c4g\Probe.exe
+WRITE OK  Chrome policy (unknown, harmless name): HKLM\SOFTWARE\Policies\Google\Chrome [SSDBMsixProbe] -> service reads back 'written by packaged service'
+WRITE OK  IFEO Debugger for a made-up exe: HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\ssdb-msix-probe.exe [Debugger] -> service reads back 'probe'
+WRITE OK  Chrome native-messaging host: HKLM\SOFTWARE\Google\Chrome\NativeMessagingHosts\com.ssdb.msix_probe [(default)] -> service reads back 'C:\ssdb-msix-probe.json'
+FILE OK   C:\ProgramData\SSDBMsixProbe\probe.txt
+--- Real registry (while installed) ---
+Chrome policy            PRESENT: SSDBMsixProbe    REG_SZ    written by packaged service
+IFEO Debugger            PRESENT: Debugger    REG_SZ    probe
+Native-messaging host    PRESENT: (Default)    REG_SZ    C:\ssdb-msix-probe.json
+ProgramData file         PRESENT
+=== 3. Uninstall the MSIX ===
+Package still installed: False
+Service still registered: False
+--- Real registry (after uninstall: what MSIX left behind) ---
+Chrome policy            PRESENT: SSDBMsixProbe    REG_SZ    written by packaged service
+IFEO Debugger            PRESENT: Debugger    REG_SZ    probe
+Native-messaging host    PRESENT: (Default)    REG_SZ    C:\ssdb-msix-probe.json
+ProgramData file         PRESENT
+=== 4. Clean up every trace ===
+Test certificate still trusted: False
+--- Real registry (after clean-up) ---
+Chrome policy            absent
+IFEO Debugger            absent
+Native-messaging host    absent
+ProgramData file         absent
+**********************
+Windows PowerShell transcript end
+End time: 20261121083021
+**********************

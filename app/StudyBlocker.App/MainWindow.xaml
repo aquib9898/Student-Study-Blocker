@@ -3,12 +3,12 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Smart Study Distraction Blocker" Icon="Assets/logo.ico"
         Width="500" Height="820" MinWidth="420" MinHeight="480"
-        WindowStartupLocation="CenterScreen"
+        WindowStartupLocation="CenterScreen" Background="{DynamicResource AppBackgroundBrush}"
         Loaded="Window_Loaded" Closed="Window_Closed">
     <DockPanel>
     <!-- On top for as long as a LockIn session is running, and the sentence is the service's
          own (LinkProtocol.LockedFromLockIn, set in code): it refuses every loosening meanwhile. -->
-    <Border x:Name="LockInBanner" DockPanel.Dock="Top" Visibility="Collapsed" Background="#0B2A5E" Padding="16,10">
+    <Border x:Name="LockInBanner" DockPanel.Dock="Top" Visibility="Collapsed" Background="{DynamicResource AccentFillColorDefaultBrush}" Padding="16,10">
         <TextBlock x:Name="LockInBannerText" Foreground="White" FontSize="14" FontWeight="SemiBold"
                    TextWrapping="Wrap" TextAlignment="Center" />
     </Border>
@@ -39,10 +39,9 @@
                         </ControlTemplate>
                     </Button.Template>
                 </Button>
-                <!-- The emblem as a shape in the theme's text colour, on no background of its
-                     own, so it sits on the window's background in light and dark alike. -->
+                <!-- The emblem as a shape in the brand blue, on no background of its own. -->
                 <Rectangle Width="44" Height="44" Margin="0,0,12,0"
-                           Fill="{DynamicResource TextFillColorPrimaryBrush}">
+                           Fill="{DynamicResource AccentFillColorDefaultBrush}">
                     <Rectangle.OpacityMask>
                         <ImageBrush ImageSource="Assets/logo-mark.png" RenderOptions.BitmapScalingMode="HighQuality" />
                     </Rectangle.OpacityMask>
@@ -113,8 +112,8 @@
                     <TextBlock Text="Blocked sites" Style="{StaticResource SectionLabel}" />
                     <!-- A "no entry" sign: a ring with a bar across it. -->
                     <Grid Width="16" Height="16" Margin="8,10,0,0" VerticalAlignment="Center">
-                        <Ellipse Stroke="#E5484D" StrokeThickness="2" />
-                        <Line X1="3.5" Y1="12.5" X2="12.5" Y2="3.5" Stroke="#E5484D" StrokeThickness="2" />
+                        <Ellipse Stroke="{DynamicResource BlockedSignBrush}" StrokeThickness="2" />
+                        <Line X1="3.5" Y1="12.5" X2="12.5" Y2="3.5" Stroke="{DynamicResource BlockedSignBrush}" StrokeThickness="2" />
                     </Grid>
                 </StackPanel>
                 <DockPanel>
@@ -139,8 +138,8 @@
                     <TextBlock Text="Blocked apps" Style="{StaticResource SectionLabel}" />
                     <!-- The same "no entry" sign as the blocked sites. -->
                     <Grid Width="16" Height="16" Margin="8,10,0,0" VerticalAlignment="Center">
-                        <Ellipse Stroke="#E5484D" StrokeThickness="2" />
-                        <Line X1="3.5" Y1="12.5" X2="12.5" Y2="3.5" Stroke="#E5484D" StrokeThickness="2" />
+                        <Ellipse Stroke="{DynamicResource BlockedSignBrush}" StrokeThickness="2" />
+                        <Line X1="3.5" Y1="12.5" X2="12.5" Y2="3.5" Stroke="{DynamicResource BlockedSignBrush}" StrokeThickness="2" />
                     </Grid>
                 </StackPanel>
                 <!-- An open app from the list, or any program file through Browse. -->
@@ -190,12 +189,11 @@
 
                     <Separator Margin="0,16,0,0" />
                     <TextBlock Text="Hide on YouTube" Style="{StaticResource SectionLabel}" />
-                    <UniformGrid x:Name="DeclutterGrid" Columns="2" />
+                    <StackPanel x:Name="DeclutterList" />
                     </StackPanel>
                 </Expander>
 
-                <TextBlock x:Name="LockedNote" Visibility="Collapsed" Style="{StaticResource Hint}" Margin="0,18,0,0"
-                           Text="During a lock you can only make things stricter: nothing can be removed or unticked until it ends." />
+                <TextBlock x:Name="LockedNote" Visibility="Collapsed" Style="{StaticResource Hint}" Margin="0,18,0,0" />
                 <Button x:Name="BreakButton" Visibility="Collapsed" Content="Break lock early" HorizontalAlignment="Left"
                         Margin="0,10,0,0" Click="BreakLock_Click" />
             </StackPanel>

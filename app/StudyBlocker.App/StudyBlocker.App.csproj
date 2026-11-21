@@ -16,7 +16,7 @@
     <ApplicationIcon>Assets\logo.ico</ApplicationIcon>
     <!-- WPF's Windows 11 (Fluent) theme, switched on by Application.ThemeMode, is still marked experimental. -->
     <NoWarn>$(NoWarn);WPF0001</NoWarn>
-    <Version>0.4.4</Version>
+    <Version>0.5.2</Version>
   </PropertyGroup>
 
   <ItemGroup>

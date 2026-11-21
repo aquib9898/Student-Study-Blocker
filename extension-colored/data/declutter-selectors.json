@@ -1,0 +1,181 @@
+{
+  "_comment": "Milestone 6: CSS selectors hidden per ticked Declutter option (plan §9). Keys match StudyBlocker.Common.DeclutterOption exactly. Pure CSS hides — each selector becomes its own `display: none !important` rule, so one YouTube no longer understands drops only itself. Only two options do more than hide, both coded in content/declutter.js: RedirectHomeToSubscriptions and Autoplay. YouTube's own DOM changes periodically; if a toggle stops doing anything, inspect the live page and fix the list here, not the code that reads it. Selectors marked as checked were seen on live YouTube (signed out) on 2026-11-21.",
+
+  "_@css": "Extra CSS an option needs besides hiding, by option name.",
+  "@css": {
+    "TopHeader": ["ytd-app { --ytd-masthead-height: 0px !important; }"]
+  },
+
+  "HomeFeed": [
+    "ytd-browse[page-subtype=\"home\"] ytd-rich-grid-renderer"
+  ],
+
+  "_RedirectHomeToSubscriptions": "Nothing to hide: declutter.js sends youtube.com/ to /feed/subscriptions.",
+  "RedirectHomeToSubscriptions": [],
+
+  "_VideoSidebar": "Everything in the column beside a video except #panels (transcript, chapters, description: panels the viewer opens themself). The four sub-options' own selectors are repeated so it also covers a narrow window, where YouTube moves them under the video. Checked.",
+  "VideoSidebar": [
+    "ytd-watch-flexy #secondary-inner > :not(#panels)",
+    "#related",
+    "ytd-watch-next-secondary-results-renderer",
+    "#chat-container",
+    "#chat",
+    "ytd-live-chat-frame",
+    "ytd-playlist-panel-renderer",
+    "ytd-watch-flexy #playlist",
+    "#donation-shelf",
+    "ytd-donation-shelf-renderer",
+    "ytd-donation-unavailable-renderer"
+  ],
+
+  "RecommendedVideos": [
+    "#related",
+    "ytd-watch-next-secondary-results-renderer"
+  ],
+
+  "LiveChat": [
+    "#chat-container",
+    "#chat",
+    "ytd-live-chat-frame"
+  ],
+
+  "_Playlists": "The playlist panel next to (or, in a narrow window, under) a video watched from a playlist, and the miniplayer's copy of it. The playlist's own page (/playlist?list=...) uses other elements, so it stays.",
+  "Playlists": [
+    "ytd-playlist-panel-renderer",
+    "ytd-watch-flexy #playlist"
+  ],
+
+  "_Fundraiser": "The donation shelf in the video sidebar. Checked (#donation-shelf).",
+  "Fundraiser": [
+    "#donation-shelf",
+    "ytd-donation-shelf-renderer",
+    "ytd-donation-unavailable-renderer"
+  ],
+
+  "_EndScreenSuggestions": "'Hide end screen feed' in the app: the grid of videos when a video ends, and the full-screen player's scroll-up grid. Checked (.ytp-fullscreen-grid).",
+  "EndScreenSuggestions": [
+    ".ytp-endscreen-content",
+    ".html5-endscreen",
+    ".ytp-fullscreen-grid"
+  ],
+
+  "_EndScreenCards": "The clickable video/channel/playlist/link tiles a creator places over the last seconds of a video.",
+  "EndScreenCards": [
+    ".ytp-ce-element"
+  ],
+
+  "_Shorts": "Shorts shelves and single Shorts in feeds, search and the sidebar, plus the Shorts entry in the side menu and on channel pages. Opening a Short directly still works (blocking Shorts is the lock's job, not this). Checked: search's grid-shelf-view-model, the mini guide's /shorts/ entry.",
+  "Shorts": [
+    "ytd-reel-shelf-renderer",
+    "ytd-rich-shelf-renderer[is-shorts]",
+    "ytd-rich-section-renderer:has(ytd-rich-shelf-renderer[is-shorts])",
+    "grid-shelf-view-model:has(a[href^=\"/shorts/\"])",
+    "ytd-rich-item-renderer:has(a[href^=\"/shorts/\"])",
+    "ytd-video-renderer:has(a[href^=\"/shorts/\"])",
+    "yt-lockup-view-model:has(a[href^=\"/shorts/\"])",
+    "ytm-shorts-lockup-view-model",
+    "ytm-shorts-lockup-view-model-v2",
+    "ytd-guide-entry-renderer:has(a[href^=\"/shorts\"])",
+    "ytd-mini-guide-entry-renderer:has(a[href^=\"/shorts\"])",
+    "yt-tab-shape[tab-title=\"Shorts\"]"
+  ],
+
+  "Comments": [
+    "#comments",
+    "ytd-comments",
+    "ytd-engagement-panel-section-list-renderer[target-id=\"engagement-panel-comments-section\"]"
+  ],
+
+  "_Mixes": "YouTube's endless auto-made playlists ('Mix - ...'). Their links carry start_radio=1. Checked (search's yt-lockup-view-model).",
+  "Mixes": [
+    "ytd-radio-renderer",
+    "ytd-compact-radio-renderer",
+    "yt-lockup-view-model:has(a[href*=\"start_radio=1\"])",
+    "ytd-rich-item-renderer:has(a[href*=\"start_radio=1\"])",
+    "ytd-playlist-renderer:has(a[href*=\"start_radio=1\"])"
+  ],
+
+  "_MerchTicketsOffers": "Store, ticket and offer shelves under a video, and the product card over the player. Checked: ytd-merch-shelf-renderer, .ytp-featured-product.",
+  "MerchTicketsOffers": [
+    "ytd-merch-shelf-renderer",
+    "ytd-ticket-shelf-renderer",
+    "ytd-offer-module-renderer",
+    "#shopping-timely-shelf",
+    ".ytp-featured-product"
+  ],
+
+  "_VideoInfo": "Everything about the video under the player: title, channel, buttons and description. Comments are their own option. Checked (ytd-watch-metadata).",
+  "VideoInfo": [
+    "ytd-watch-flexy #below ytd-watch-metadata",
+    "ytd-watch-flexy #info-contents",
+    "ytd-watch-flexy #meta-contents"
+  ],
+
+  "_TopHeader": "The bar across the top: logo, search box, bell. @css above closes the gap it leaves. Checked.",
+  "TopHeader": [
+    "#masthead-container"
+  ],
+
+  "_Notifications": "The bell in the top bar (signed-in only, so not checked live).",
+  "Notifications": [
+    "ytd-notification-topbar-button-renderer",
+    "ytd-notification-topbar-button-shape-renderer"
+  ],
+
+  "_InaptSearchResults": "The shelves YouTube mixes into search results that aren't answers to the search: 'People also watched', 'For you', 'Previously watched', 'Searches related to'. A Shorts shelf there is the Shorts option's. Signed-in only, so not checked live.",
+  "InaptSearchResults": [
+    "ytd-search ytd-shelf-renderer",
+    "ytd-search ytd-horizontal-card-list-renderer",
+    "ytd-search ytd-item-section-renderer grid-shelf-view-model:not(:has(a[href^=\"/shorts/\"]))"
+  ],
+
+  "_TrendingExplore": "The side menu's Explore section (Trending, Music, Movies, Gaming, News, Sports, ...), found by whichever of its usual entries it still has. Checked (signed-out Explore section).",
+  "TrendingExplore": [
+    "ytd-guide-entry-renderer:has(a[href^=\"/feed/explore\"])",
+    "ytd-guide-entry-renderer:has(a[href^=\"/feed/trending\"])",
+    "ytd-mini-guide-entry-renderer:has(a[href^=\"/feed/explore\"])",
+    "ytd-mini-guide-entry-renderer:has(a[href^=\"/feed/trending\"])",
+    "ytd-guide-section-renderer:has(a[href^=\"/feed/trending\"])",
+    "ytd-guide-section-renderer:has(a[href^=\"/feed/explore\"])",
+    "ytd-guide-section-renderer:has(a[href^=\"/feed/storefront\"])",
+    "ytd-guide-section-renderer:has(a[href=\"/gaming\"])",
+    "ytd-guide-section-renderer:has(a[href^=\"/feed/news_destination\"])",
+    "ytd-guide-section-renderer:has(a[href=\"/podcasts\"])",
+    "ytd-guide-section-renderer:has(a[href=\"/channel/UC-9-kyTW8ZkZNDHQJ6FgpwQ\"])",
+    "ytd-guide-section-renderer:has(a[href=\"/channel/UC4R8DWoMoI7CAwX8_LjQHig\"])"
+  ],
+
+  "_MoreFromYouTube": "The side menu's 'More from YouTube' section (Premium, Music, Kids). Checked.",
+  "MoreFromYouTube": [
+    "ytd-guide-section-renderer:has(a[href^=\"https://music.youtube.com\"])",
+    "ytd-guide-section-renderer:has(a[href*=\"youtubekids.com\"])",
+    "ytd-guide-section-renderer:has(a[href=\"/premium\"])"
+  ],
+
+  "_SubscriptionsFeed": "'Hide subscriptions' in the app: the subscriptions feed, its side-menu entry and the side menu's list of subscribed channels (its 'Subscriptions >' heading links to /feed/channels; signed-in only, so that part isn't checked live).",
+  "SubscriptionsFeed": [
+    "ytd-browse[page-subtype=\"subscriptions\"] ytd-rich-grid-renderer",
+    "ytd-guide-entry-renderer:has(a[href=\"/feed/subscriptions\"])",
+    "ytd-mini-guide-entry-renderer:has(a[href=\"/feed/subscriptions\"])",
+    "ytd-guide-section-renderer:has(a[href=\"/feed/channels\"])"
+  ],
+
+  "_Autoplay": "'Disable autoplay' in the app: declutter.js turns the player's autoplay switch off, and these hide that switch and the 'Up next' countdown so it stays off. Checked (.ytp-autonav-toggle).",
+  "Autoplay": [
+    "button.ytp-autonav-toggle",
+    ".ytp-autonav-toggle-button-container",
+    ".ytp-autonav-endscreen-upnext-container",
+    ".ytp-autonav-endscreen-countdown-overlay"
+  ],
+
+  "_Annotations": "Anything a creator lays over the video while it plays: the 'i' info cards and their teaser, the channel watermark, and old-style annotations. Checked: .ytp-cards-button, .ytp-cards-teaser, .ytp-iv-player-content.",
+  "Annotations": [
+    ".ytp-cards-button",
+    ".ytp-cards-teaser",
+    ".ytp-iv-player-content",
+    ".ytp-iv-video-content",
+    ".iv-branding",
+    ".annotation",
+    ".video-annotations"
+  ]
+}

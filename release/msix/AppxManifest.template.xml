@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The Microsoft Store (MSIX) package. build-msix.ps1 fills in the {{...}} values:
+     the identity comes from Partner Center (Product identity), the version from
+     the service's .csproj. The package holds the same three programs as the EXE
+     setup, in the same folders (service, native-host, app), so the service finds
+     the app next to it as it does in Program Files. What install.ps1 does on top
+     of copying files, the service does itself when it runs from this package
+     (service\src\StudyBlocker.Service\Packaging\PackagedInstall.cs). -->
+<Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+         xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+         xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+         xmlns:desktop6="http://schemas.microsoft.com/appx/manifest/desktop/windows10/6"
+         IgnorableNamespaces="uap rescap desktop6">
+  <Identity Name="{{IdentityName}}" Publisher="{{Publisher}}" Version="{{Version}}" ProcessorArchitecture="x64" />
+  <Properties>
+    <DisplayName>Smart Study Distraction Blocker</DisplayName>
+    <PublisherDisplayName>{{PublisherDisplayName}}</PublisherDisplayName>
+    <Logo>Assets\StoreLogo.png</Logo>
+    <Description>Blocks distracting websites, apps and YouTube videos while you study, with locks you can't undo until they end.</Description>
+  </Properties>
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.19041.0" MaxVersionTested="10.0.26100.0" />
+  </Dependencies>
+  <Resources>
+    <Resource Language="en-us" />
+  </Resources>
+  <Applications>
+    <Application Id="App" Executable="app\SmartStudyDistractionBlocker.exe" EntryPoint="Windows.FullTrustApplication">
+      <uap:VisualElements DisplayName="Smart Study Distraction Blocker"
+                          Description="Blocks distracting websites, apps and YouTube videos while you study."
+                          BackgroundColor="transparent"
+                          Square150x150Logo="Assets\Square150x150Logo.png"
+                          Square44x44Logo="Assets\Square44x44Logo.png">
+        <uap:DefaultTile Wide310x150Logo="Assets\Wide310x150Logo.png" />
+      </uap:VisualElements>
+      <Extensions>
+        <!-- The same service as the EXE setup's (same name, so LockIn and the app
+             find it the same way), started with Windows, as SYSTEM. -->
+        <desktop6:Extension Category="windows.service" Executable="service\StudyBlocker.Service.exe" EntryPoint="Windows.FullTrustApplication">
+          <desktop6:Service Name="SmartStudyBlockerService" StartupType="auto" StartAccount="localSystem" />
+        </desktop6:Extension>
+      </Extensions>
+    </Application>
+  </Applications>
+  <Capabilities>
+    <rescap:Capability Name="runFullTrust" />
+    <!-- Restricted: Partner Center asks why. A packaged Windows service, running as
+         SYSTEM, is what enforces blocked sites, apps and locks for every account. -->
+    <rescap:Capability Name="packagedServices" />
+    <rescap:Capability Name="localSystemServices" />
+  </Capabilities>
+</Package>

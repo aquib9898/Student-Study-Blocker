@@ -1,7 +1,6 @@
-// Names the blocked site; the rest of blocked.html is static. (Extension pages
+// Names the blocked site in the tab title; the page itself only says it is blocked. (Extension pages
 // can't run inline scripts, hence this file.)
 const site = (new URLSearchParams(location.search).get("site") ?? "").replace(/^www\./, "");
 if (site) {
-  document.getElementById("site").textContent = site;
   document.title = `${site} is blocked`;
 }

@@ -3,6 +3,7 @@ using StudyBlocker.Common;
 using StudyBlocker.Service;
 using StudyBlocker.Service.AppBlocking;
 using StudyBlocker.Service.Classification;
+using StudyBlocker.Service.Packaging;
 using StudyBlocker.Service.Policies;
 
 const string ServiceName = "SmartStudyBlockerService";
@@ -41,12 +42,21 @@ catch (UnauthorizedAccessException)
 var appBlockLauncher = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "app", "SmartStudyDistractionBlocker.exe"));
 if (!File.Exists(appBlockLauncher)) appBlockLauncher = null;
 
+// The Microsoft Store (MSIX) version: no installer script, so the service
+// sets itself up (PackagedInstall). It writes no "Image File Execution
+// Options" keys: MSIX runs nothing at uninstall, and a key left behind would
+// keep a blocked program from ever opening. AppWatcher still closes blocked
+// programs within a second, and the app still shows its notice.
+var packaged = PackagedInstall.Detect(storeRoot);
+var ifeoLauncher = packaged is null ? appBlockLauncher : null;
+
 // The uninstaller's last step before removing the service: puts every
 // browser policy the service took over back the way it was, then exits.
 // Refused during a lock, like every other way of loosening one.
 if (args.Contains("--restore-browser-policies"))
 {
-    if (new LockStateStore(store, new TrustedClock()).Current.IsLocked)
+    var locks = new LockStateStore(store, new TrustedClock());
+    if (locks.Current.IsLocked || locks.ScheduleInForce || locks.AdvancedInForce)
     {
         Console.Error.WriteLine("A lock is active, so the browser policies stay until it ends.");
         return 1;
@@ -71,7 +81,12 @@ builder.Services.AddSingleton(new LinkStore(store, LinkProtocol.OfferFilePath));
 builder.Services.AddSingleton<LinkService>();
 builder.Services.AddSingleton<IPolicyRegistry, WindowsPolicyRegistry>();
 builder.Services.AddSingleton(services =>
-    new PolicyWriter(services.GetRequiredService<IPolicyRegistry>(), store, appBlockLauncher));
+    new PolicyWriter(services.GetRequiredService<IPolicyRegistry>(), store, ifeoLauncher, packaged is null ? null : packaged.UpdateRestorePlan));
+if (packaged is not null)
+{
+    builder.Services.AddSingleton(packaged);
+    builder.Services.AddHostedService<PackagedInstallService>();
+}
 builder.Services.AddSingleton(new AppWatcher(
     new WindowsProcessTable(),
     appBlockLauncher is null ? null : new UserSessionNotice(appBlockLauncher)));

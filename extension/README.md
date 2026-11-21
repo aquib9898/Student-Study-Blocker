@@ -52,6 +52,23 @@ It can move to TypeScript later without changing the design.
   not. It reports only once the player's video matches the address. Reading
   the page text instead gave the *previous* video's title after every
   in-YouTube click, because YouTube updates the address before the text.
+  It also watches every other YouTube player on the page and reports any
+  that is actually playing as `offPage: true` with its `playerId`: the
+  miniplayer after "Add to queue" (`#movie_player` moved into
+  `ytd-miniplayer`, address still on search/home), hover previews
+  (`#inline-preview-player`) and channel trailers (`#c4-player`). None of
+  those has a `/watch` address, so before 0.11.5 they played unjudged.
+  Playing means the player's state is playing/buffering *or* its `<video>`
+  is running: during a pre-roll ad the state stays -1. Every verdict now
+  names its video, and a blocked (or grey) off-page one is stopped in its
+  own player instead of getting the page-wide block screen: the miniplayer
+  is also closed (with a small notice), a hover preview just stops. It is
+  remembered for a minute, so a preview restarting on the next mouse move
+  is stopped at once, and judged again whenever it starts playing again.
+  Checked 2026-11-19 against live YouTube with a fake background that
+  blocked everything: queue (with and without an ad), hover preview,
+  channel trailer, Study verdict leaves a preview playing, watch page
+  unchanged.
 - `content/overlay.js`: renders the in-page block screen and grey-zone
   popup as a full-page overlay, exposed to `content/youtube.js` as
   `window.SBOverlay` (both load in the same content-script group — see
@@ -66,8 +83,10 @@ It can move to TypeScript later without changing the design.
   could otherwise still start the video underneath (fixed in Milestone 7).
 - `content/declutter.js`: asks the background worker for the selectors to
   hide, on page load and again whenever you come back to the tab, and
-  injects them as one `<style>` tag. Pure CSS, no node removal and no
-  navigation blocking — see "How Declutter hides things" below.
+  injects them as one `<style>` tag. CSS hides, no node removal and no
+  navigation blocking, apart from two options that act on the page
+  (Redirect to Subscriptions, Disable autoplay) — see "How Declutter hides
+  things" below.
 - `data/declutter-selectors.json`: the DOM selectors for each Declutter
   option, read by `background.js` (not the content script — see below), so
   a YouTube redesign is a data edit, not a code change.
@@ -77,22 +96,31 @@ It can move to TypeScript later without changing the design.
   drawn in the text colour on `blocked.html` and in white on the YouTube
   block screen. `icons/` holds the toolbar icons: the same logo on a black
   rounded square, as in the app's program icon.
-- `popup.html` / `popup.js`: the toolbar popup. It shows whether the
-  service is connected, the time left on the lock (the shorter countdown
-  while it's being broken early), the blocked-site count, and whether Shorts
-  blocking, education-only mode and Declutter are on. Over a YouTube video
-  it also has **Block channel** (below). Its Milestone 3 Pause / Resume
-  test buttons are gone: Resume could lift a block screen during a lock,
-  and settings belong in the app.
-  - **Without the desktop app** (a store install on a PC that hasn't got
-    it), the browser has no native-messaging host to start, and says
-    "Specified native messaging host not found". `background.js` flags
-    that as `appMissing`, and the popup shows only "Companion app not
-    detected. Please install it from:" and a link instead of the status.
-    The link is `INSTALL_URL` at the top of `popup.js`, a placeholder
-    (`https://example.com/`) until there's a real download page.
-    Other failures (the service stopped, a host that's there but refuses
-    this extension) still show "not connected" and the browser's error.
+- `popup.html` / `popup.js`: the toolbar popup, with two faces since
+  0.12.0 (the user's request, 2026-11-21):
+  - **The desktop app is installed** (the native host answers): no
+    controls at all, just "Control from App" and, under it, "App
+    connected" (green) or "App not connected" (red, the browser's error
+    as its tooltip). Every setting lives in the app. The old status rows
+    and the popup's Block channel button are gone.
+  - **No desktop app** ("Specified native messaging host not found", which
+    Chrome also says when a host is registered but its program is gone, as
+    for a few minutes after the Microsoft Store version is uninstalled):
+    standalone mode, see "Standalone mode" below. No connected/disconnected
+    line. Top to bottom: the YouTube section, then Blocked sites. (The app
+    pitch that used to close the popup was removed at the user's request,
+    2026-11-21, as was the "only stricter during a lock" note.)
+  - Always light, whatever the browser's or Windows' theme. Every colour is
+    in `theme.css` (and `THEME` at the top of `content/overlay.js` for what
+    is drawn on YouTube): neutral greys, brand blue #2563c9, coral #b24d39
+    for "blocked", amber for warnings (picked with Tinta, 2026-11-21; the
+    Windows app uses the same palette).
+  - Block screens say only "Blocked by Smart Study Distraction Blocker":
+    no site name, score or category (the user's call, 2026-11-21).
+- `settings.js`: standalone mode's settings (chrome.storage.local, key
+  `standalone`) and their helpers, shared by the popup and `background.js`.
+- `classifier.js` + `data/classifier-words.json`: standalone mode's copy of
+  the service's video classifier (see "Standalone mode").
 - `native-host/`: the bridge to the service (below).
 
 ## The native-messaging host
@@ -193,22 +221,87 @@ light or dark.
   Chrome and Edge: the page and its logo, Back, a blocked site opened in a
   new tab, and the YouTube block screen.
 
+## Standalone mode (no desktop app)
+
+Since 0.12.0 (the user's request, 2026-11-21) the extension works on its
+own when the app isn't installed: the browser then has no native-messaging
+host, `callService` flags that as `appMissing`, and every handler in
+`background.js` falls back to the extension's own settings. The popup holds
+the same sections as the app minus **Blocked apps** and education-only
+mode (removed at the user's request, 2026-11-21): the Lock, YouTube
+channels (Allow / Block, Enter blocks), the 22 "Hide on YouTube" switches
+and blocked sites, plus an on/off switch. A switch with sub-options (home
+feed, video sidebar, top header) has a "+" at the end of its row; its
+sub-options stay folded away until it's clicked ("−" folds them again),
+folded every time the popup opens. Nothing enforces any of it from outside
+the browser.
+- **The lock** (the user's request, 2026-11-21): the app's Lock, rules and
+  wording included, with two differences (the user's choice): no preset
+  buttons, Lock shows only the slider (hour by hour to a day, then every 6
+  hours), and it stops at 3 days, not 7. "Lock for …?" is asked in the
+  popup's own box. Locked, the header says "Locked · X left", Lock becomes
+  Extend (never past 3 days left), and things can only
+  get stricter: no remove buttons on sites or blocked channels, no Allow,
+  a switch that's on stays on (turning one on asks first), the on/off
+  switch stays on (starting a lock switches it on). **Break lock early**
+  (offered while more than 2 hours are left) ends it after a 2-hour
+  countdown, cancellable. `sbUpdateSettings` refuses any loosening
+  change during a lock (`sbAtLeastAsStrict`), except a grey-zone popup
+  Allow, which the app also takes during a lock. State: `lock: { endsAt,
+  breakEndsAt }` in the settings, on the PC's clock.
+  - It is breakable on purpose (the user accepted it): switching the
+    extension off or removing it in the browser's extensions page ends it,
+    and so would changing the PC's clock. The app is what makes a lock
+    unbreakable (it force-installs the extension through browser policy),
+    which is the extension's description and the popup's last line.
+- **Blocked sites**: one `declarativeNetRequest` dynamic "block" rule per
+  site (main page and frames; `reddit.com` covers its subdomains,
+  `youtube.com/shorts` just that path), kept in step by `syncSiteRules` on
+  every settings change and every status refresh. A redirect would need
+  host permissions for every site, so the browser shows its own error for
+  a moment and the `onErrorOccurred` listener swaps in `blocked.html`, as
+  for the app's policy blocks. `ERR_BLOCKED_BY_CLIENT` also comes from ad
+  blockers, so it only counts while we have rules and one of our sites
+  covers the address. With the app installed there are no rules: its
+  browser policy does the blocking.
+- **YouTube verdicts**: `classifier.js` is a port of the service's
+  `ClassifierStore` + `RuleScoring`, in the same order: channel lists,
+  verdict cache (1000 videos), weighted score with the channel's learned
+  bias. No education-only gate (that mode is the app's alone). Its word lists are in
+  `data/classifier-words.json`; the service test
+  `DeclutterTests.ClassifierWordsMatchTheService` fails when they drift
+  from `RuleScoring.cs`. The grey-zone popup's answer goes into the
+  extension's channel list.
+- **Hide on YouTube**: `getDeclutter` reads the ticked options from the
+  settings; `declutter.js` also re-applies on the storage change, so a
+  switch flipped in the popup shows on the tab at once.
+- Any settings change makes every open YouTube tab check its videos again
+  (`recheck-video`).
+- Over a YouTube video the popup also shows the video's channel with a
+  **Block channel** button (below), standalone mode only.
+- An installed app whose service is down is NOT standalone: the app's
+  rules and fail-safe still apply, and the popup says "App not connected".
+- The standalone settings are left in storage when the app is installed,
+  unused; they come back if the app is uninstalled.
+- `declarativeNetRequest` is a new permission in 0.12.0 ("Block content on
+  any page"): force-installed copies get it silently; a copy someone added
+  by hand from a store is disabled by the browser until they accept it.
+
 ## Block channel
 
-The toolbar popup's one control (the user's request, 2026-09-30). Over a
+Standalone mode only since 0.12.0 (with the app installed the popup has no
+controls). The toolbar popup's one control before that (the user's request, 2026-09-30). Over a
 YouTube video (a watch page or a Short) it shows the video's channel and a
 red **Block channel** button, which adds that channel to the blocked list
 straight away, with no question.
 - The popup asks the tab's `youtube.js` which video is on screen (only if
-  it's still the one in the address bar), then `background.js` sends
-  `set-channel-rule` with the channel's id and name, like the grey-zone
-  popup's Block.
+  it's still the one in the address bar), then saves the channel (id and
+  name) to the standalone channel list, like the grey-zone popup's Block.
 - Every open YouTube tab then checks its video again, so the one on screen,
   and any other tab showing that channel, gets the block screen at once.
-- It's the one control the extension has, because blocking only ever makes
-  things stricter: the service accepts it at any time, lock or not. During
-  a lock the channel stays blocked until the lock ends, like any other
-  block.
+- Before 0.12.0 it was the one control the extension had, because blocking
+  only ever makes things stricter: the service accepted it at any time,
+  lock or not. Now it writes the standalone channel list instead.
 - Already blocked, the popup says "This channel is blocked." instead. On the
   allowed list, it says so and still offers the button (blocking takes it
   off that list). Away from a video it says to open one.
@@ -255,15 +348,30 @@ whatever is ticked, exactly like it has no opinion on classifier weights.
    declared web-accessible — which would also let any site detect that this
    extension is installed.
 2. For each ticked option, every selector listed for it goes into one
-   injected `<style>` tag: `selector { display: none !important }`. That's
-   the entire mechanism — no `MutationObserver`, no polling, no removing
-   nodes. Because it's a live stylesheet rule rather than a one-time DOM
+   injected `<style>` tag, one `selector { display: none !important }`
+   rule each (since 0.12.0: a selector the browser rejects then drops only
+   itself, not the whole list), plus any extra CSS the file's `@css` map
+   gives the option (the top header needs `--ytd-masthead-height: 0` so the
+   page moves up). No `MutationObserver`, no removing nodes. Because it's a live stylesheet rule rather than a one-time DOM
    pass, it keeps hiding matching elements through every future in-app
    navigation on that tab without watching for anything, the same way a
    browser extension's ad-block stylesheet does.
-3. Nothing here touches navigation: the search box, the address bar, typing
-   in `/feed/subscriptions` directly, opening a playlist or clicking a video
-   from search all still work. Declutter only changes what's *visible* on a
+3. Two options do more than hide (0.12.0, the user's list of 2026-11-21):
+   - **RedirectHomeToSubscriptions** sends `www.youtube.com/` to
+     `/feed/subscriptions`: a click on the logo or Home is caught before
+     YouTube handles it, and a check on load, on `yt-navigate-finish` and
+     every second catches the rest (back/forward). Only on youtube.com
+     itself, never music.youtube.com.
+   - **Autoplay** ("Disable autoplay") clicks the player's autoplay switch
+     off whenever it finds it on (checked every second; clicking works
+     while the switch is hidden), and hides the switch and the "Up next"
+     countdown so it stays off. YouTube remembers the switch, so it stays
+     off after the option is switched off too, until the viewer turns it
+     back on.
+
+   Otherwise nothing here touches navigation: the search box, the address
+   bar, typing in `/feed/subscriptions` directly, opening a playlist or
+   clicking a video from search all still work. Declutter only changes what's *visible* on a
    page you're already on — an opened video is still classified and
    enforced exactly as described above, completely independently of any
    ticked Declutter option.
@@ -351,8 +459,8 @@ one. Those scripts are only for working on the host itself now.
   - **Allow channel** on a popup still plays the video, and the app lists
     that channel at the top as "Allowed during this lock", with a Block
     button.
-- To see Declutter, tick "Comments" and "Home feed" under "Hide on YouTube"
-  in the app, then load or reload a YouTube tab.
+- To see Declutter, switch on "Hide comments" and "Hide home feed" under
+  "Hide on YouTube" in the app, then load or reload a YouTube tab.
   - The comments section on a watch page and the video grid on the home page
     (leaving just the masthead and search) should both be gone.
   - The toolbar popup's note line should read "Declutter: 2 active."

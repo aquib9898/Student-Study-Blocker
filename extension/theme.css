@@ -1,0 +1,58 @@
+/* Every colour of the popup (popup.html) and the blocked-site page
+   (blocked.html), in one place. The YouTube block screen and grey-zone popup
+   have theirs at the top of content/overlay.js (THEME).
+
+   Palette (2026-11-21): neutral base, BLUE as the dominant brand colour.
+   Picked with Tinta (OKLCH maths):
+   - neutrals carry most of the screen: cool off-white page, white cards,
+     charcoal text (like StayFocusd's pages);
+   - blue #2563c9 is the dominant colour: every main button, switch, slider,
+     link and the logo;
+   - coral/brick #b24d39 is the complementary accent (opposite blue on the
+     wheel), used only where something is blocked;
+   - amber, coral's warm neighbour, for warnings (their "Nuclear" hazard look);
+   - teal for "OK" (their "Active" status).
+   Every text colour passes WCAG AA on the background it sits on.
+   Change any value and reload the extension to see it. */
+:root {
+  color-scheme: light;
+
+  /* Backgrounds: neutral, flat, no gradient. */
+  --bg: #f6f7f9;               /* the page: cool off-white */
+  --bg-glow: transparent;
+  --card: #ffffff;             /* cards and the YouTube section */
+  --card-border: #e3e6eb;
+  --field: #ffffff;            /* text boxes */
+  --field-border: #d5dae1;
+  --field-underline: #aab3bf;
+  --button: #ffffff;           /* plain (secondary) buttons stay quiet */
+  --button-hover: #f1f3f6;
+  --button-border: #d5dae1;
+
+  /* Text: neutral charcoal. */
+  --text: #1e2329;             /* 15.8:1 on white */
+  --text-2: #4a525c;           /* secondary, 7.9:1 */
+  --text-3: #636b75;           /* hints, placeholders, 5.0:1 on the page */
+
+  /* The dominant brand blue. */
+  --accent: #2563c9;           /* Lock button, switches on, slider */
+  --accent-soft: #2563c9;      /* links */
+  --on-accent: #ffffff;        /* 5.7:1 on the blue */
+  --mark: #2563c9;             /* the logo */
+  --mark-glow: transparent;
+
+  /* Lines. */
+  --divider: #e3e6eb;
+  --rail: #d5dae1;             /* the line beside sub-options */
+
+  /* Meaning (complementary + its warm neighbour). */
+  --ok: #006a6e;               /* "App connected" (teal) */
+  --error: #b24d39;            /* coral-brick, 5.2:1 on white */
+  --block: #b24d39;            /* Block channel (coral-brick) */
+  --block-text: #ffffff;       /* 5.2:1 on the coral */
+  --caution-bg: #fff3dc;       /* "Breaking the lock early" banner (amber) */
+  --caution-border: #f2b544;
+  --danger-icon: #b24d39;      /* the "blocked" sign beside Blocked sites */
+  --backdrop: rgba(30, 35, 41, 0.35); /* behind the confirm box */
+  --shadow: rgba(30, 35, 41, 0.14);
+}

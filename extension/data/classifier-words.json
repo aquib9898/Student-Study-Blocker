@@ -1,0 +1,20 @@
+{
+  "_comment": "Standalone mode's copy of the service's word lists (service/src/StudyBlocker.Service/Classification/RuleScoring.cs), used by classifier.js when the desktop app isn't installed. Keep the two the same: DeclutterTests.ClassifierWordsMatchTheService fails when they differ.",
+  "studyCategories": ["Education", "Science & Technology", "Howto & Style"],
+  "distractionCategories": ["Entertainment", "Comedy", "Gaming", "Film & Animation", "Music"],
+  "greySignals": ["podcast", "full episode", "in conversation with", "audiobook"],
+  "instantDistractionKeywords": ["prank"],
+  "studyKeywords": [
+    "lecture", "tutorial", "course", "syllabus", "lesson", "chapter",
+    "exam", "revision", "homework", "assignment", "textbook",
+    "professor", "explained", "derivation", "algorithm", "coding",
+    "programming language", "programming tutorial", "competitive programming",
+    "university", "semester", "crash course", "jee", "neet",
+    "upsc", "thesis", "notes", "practice problems"
+  ],
+  "distractionKeywords": [
+    "reaction", "react to", "try not to laugh", "meme",
+    "compilation", "shorts", "asmr", "gossip", "drama", "trailer",
+    "highlights", "funny moments", "clickbait", "satisfying video"
+  ]
+}

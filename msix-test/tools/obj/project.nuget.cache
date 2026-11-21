@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "dgSpecHash": "DxKGJGOQX60=",
+  "success": true,
+  "projectFilePath": "D:\\Student-Study-Blocker\\msix-test\\tools\\tools.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\noors\\.nuget\\packages\\microsoft.windows.sdk.buildtools\\10.0.26100.4654\\microsoft.windows.sdk.buildtools.10.0.26100.4654.nupkg.sha512"
+  ],
+  "logs": []
+}

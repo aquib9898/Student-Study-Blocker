@@ -85,12 +85,20 @@ public sealed class LockStateStore
 
     private const string StateFile = "lock-state.json";
     private const string SessionFile = "linked-session.json";
+    private const string ScheduleFile = "scheduled-lock.json";
+    private const string ScheduleSlotsFile = "scheduled-lock-slots.json";
+
+    // How many days of enforced slots are kept for LockIn to read back.
+    private const int SlotDaysKept = 14;
 
     private readonly IStateStore _store;
     private readonly TrustedClock _clock;
+    private readonly TimeZoneInfo _zone;
     private readonly object _gate = new();
     private LockState _current;
     private LinkedSession _session;
+    private ScheduledLockPlan _schedule;
+    private Dictionary<string, string> _slots;
 
     // Monotonic reading when time was last counted. In memory only, so time
     // the service wasn't running never counts as uptime.
@@ -102,12 +110,17 @@ public sealed class LockStateStore
     private long _leaseUntilMs;
     private SessionEnd? _sessionEnd;
 
-    public LockStateStore(IStateStore store, TrustedClock clock)
+    // `zone`: the PC's own time zone unless a test says otherwise. The
+    // scheduled lock's window is in the student's local time.
+    public LockStateStore(IStateStore store, TrustedClock clock, TimeZoneInfo? zone = null)
     {
         _store = store;
         _clock = clock;
+        _zone = zone ?? TimeZoneInfo.Local;
         _current = store.Read<LockState>(StateFile) ?? new LockState();
         _session = store.Read<LinkedSession>(SessionFile) ?? new LinkedSession();
+        _schedule = store.Read<ScheduledLockPlan>(ScheduleFile) ?? new ScheduledLockPlan();
+        _slots = store.Read<Dictionary<string, string>>(ScheduleSlotsFile) ?? [];
         _lastCountedMs = clock.MonotonicMs;
         if (_session.Active) _leaseUntilMs = _lastCountedMs + (long)SessionLease.TotalMilliseconds;
     }
@@ -116,6 +129,90 @@ public sealed class LockStateStore
     {
         get { lock (_gate) return _session.Active; }
     }
+
+    // --- LockIn's scheduled lock (Habit Builder) ---
+    //
+    // In force inside the plan's window, unless the day was released. While it
+    // is: the session's minimums are enforced on top of the user's rules, with
+    // the lock's browser lockdown, and nothing can loosen — the same as a
+    // session-Lock, but on the student's clock and with no lease, so it holds
+    // with LockIn closed. A session break doesn't lift it (my call: only the
+    // day's study goal does, and LockIn says so with a released day).
+
+    public bool ScheduleInForce
+    {
+        get { lock (_gate) return ScheduleInForceCore(); }
+    }
+
+    // Local time on the trusted clock; the system clock only until the first
+    // network sync (an offline PC can't do better).
+    private DateTime LocalNow() =>
+        TimeZoneInfo.ConvertTime(_clock.UtcNow ?? DateTimeOffset.UtcNow, _zone).DateTime;
+
+    private bool ScheduleInForceCore() => _schedule.InForceAt(LocalNow());
+
+    // --- LockIn's Advanced lock: the top of the ladder ---
+    //
+    // Locked all day until the day's study target is met. While it is, its
+    // enforced view is the scheduled lock's (minimums + lockdown on top of the
+    // user's rules) and it overrides everything: a session break lifts nothing,
+    // nothing loosens, and the user's own Lock can't be broken early either —
+    // so whatever other lock is on is still there once it unlocks itself.
+
+    public bool AdvancedInForce
+    {
+        get { lock (_gate) return AdvancedInForceCore(); }
+    }
+
+    private bool AdvancedInForceCore() =>
+        _schedule.AdvancedInForceAt(LocalNow(), (_clock.UtcNow ?? DateTimeOffset.UtcNow).ToUnixTimeMilliseconds());
+
+    // LockIn's whole plan, replaced. Recorded slots are kept.
+    public void SetSchedule(ScheduledLockPlan plan)
+    {
+        lock (_gate)
+        {
+            _schedule = plan;
+            _store.Write(ScheduleFile, _schedule);
+            Count();
+        }
+    }
+
+    // The slots enforced on `day` (all clear if none).
+    public string ScheduleSlotsFor(DateOnly day)
+    {
+        lock (_gate) return _slots.TryGetValue(day.ToString("yyyy-MM-dd"), out var hex) ? hex : ScheduleSlots.Empty;
+    }
+
+    // Each count inside the window marks the slot it falls in. Counts come
+    // every 5 s while the service runs, so a slot is marked only if the
+    // service was actually there to enforce it.
+    private void CountSchedule()
+    {
+        var local = LocalNow();
+        if (!_schedule.InForceAt(local)) return;
+        var key = DateOnly.FromDateTime(local).ToString("yyyy-MM-dd");
+        var before = _slots.TryGetValue(key, out var hex) ? hex : ScheduleSlots.Empty;
+        var after = ScheduleSlots.Set(before, ScheduleSlots.IndexOf(local));
+        if (after == before && _slots.ContainsKey(key)) return;
+        _slots[key] = after;
+        var oldest = DateOnly.FromDateTime(local).AddDays(-SlotDaysKept).ToString("yyyy-MM-dd");
+        foreach (var old in _slots.Keys.Where(k => string.CompareOrdinal(k, oldest) < 0).ToList()) _slots.Remove(old);
+        _store.Write(ScheduleSlotsFile, _slots);
+    }
+
+    // The scheduled lock's enforced view: the user's rules plus the session's
+    // minimum blocks, extension on. Derived, never saved, so it leaves nothing
+    // behind when the window ends.
+    private LockState Scheduled(LockState state) => state with
+    {
+        Rules = state.Rules with
+        {
+            ExtensionEnabled = true,
+            Declutter = state.Rules.Declutter.Union(SessionDeclutter).ToList(),
+            BlockAdultContent = true,
+        },
+    };
 
     public LockState Current
     {
@@ -144,13 +241,21 @@ public sealed class LockStateStore
     // never disagree about a break that starts or ends in between.
     public (LockState State, bool SessionLock) Enforcement
     {
-        get { lock (_gate) return (EnforcedCore(), _session.Active && !_session.OnBreak); }
+        get
+        {
+            lock (_gate)
+                return (EnforcedCore(), (_session.Active && !_session.OnBreak) || ScheduleInForceCore() || AdvancedInForceCore());
+        }
     }
 
-    private LockState EnforcedCore() =>
-        _session.Active && _session.OnBreak
+    // The Advanced lock and the scheduled lock both win over a session break.
+    private LockState EnforcedCore()
+    {
+        if (AdvancedInForceCore() || ScheduleInForceCore()) return Scheduled(_current);
+        return _session.Active && _session.OnBreak
             ? new LockState { Rules = _current.Rules with { ExtensionEnabled = false } }
             : _current;
+    }
 
     // The rules themselves are left as they are, except that the extension
     // is switched back on: a lock is for enforcing. The browser lockdown is
@@ -203,10 +308,16 @@ public sealed class LockStateStore
             // A LockIn session holds the ratchet exactly as a lock does. Its
             // message wins when both apply: it names the thing the user can
             // actually end to get their way.
-            if ((_current.IsLocked || _session.Active) && !proposed.IsAtLeastAsStrictAs(_current.Rules))
-                throw new InvalidOperationException(_session.Active
-                    ? LinkProtocol.LockedFromLockIn
-                    : "During a lock, rules can only get stricter. That change has to wait until the lock ends.");
+            var scheduled = ScheduleInForceCore();
+            var advanced = AdvancedInForceCore();
+            if ((_current.IsLocked || _session.Active || scheduled || advanced) && !proposed.IsAtLeastAsStrictAs(_current.Rules))
+                throw new InvalidOperationException(advanced
+                    ? LinkProtocol.AdvancedLockFromLockIn
+                    : _session.Active
+                        ? LinkProtocol.LockedFromLockIn
+                        : scheduled
+                            ? LinkProtocol.ScheduledLockFromLockIn
+                            : "During a lock, rules can only get stricter. That change has to wait until the lock ends.");
 
             Save(_current with { Rules = proposed });
         }
@@ -220,6 +331,8 @@ public sealed class LockStateStore
     {
         lock (_gate)
         {
+            if (AdvancedInForceCore())
+                throw new InvalidOperationException(LinkProtocol.AdvancedLockFromLockIn);
             if (_session.Active)
                 throw new InvalidOperationException(LinkProtocol.LockedFromLockIn);
 
@@ -380,8 +493,7 @@ public sealed class LockStateStore
     {
         lock (_gate)
         {
-            if (_session.Active)
-                throw new InvalidOperationException(LinkProtocol.LockedFromLockIn);
+            RefuseOverrideCore();
             Save(_current with { Rules = rules });
         }
     }
@@ -391,13 +503,26 @@ public sealed class LockStateStore
     {
         lock (_gate)
         {
-            if (_session.Active)
-                throw new InvalidOperationException(LinkProtocol.LockedFromLockIn);
+            RefuseOverrideCore();
             Count();
             if (!_current.IsLocked)
                 throw new InvalidOperationException("No active lock to end.");
             End(LockEnd.Overridden);
         }
+    }
+
+    // Nothing loosens while a LockIn session or the scheduled lock holds — the
+    // overrides and unlinking included.
+    public void RefuseLoosening()
+    {
+        lock (_gate) RefuseOverrideCore();
+    }
+
+    private void RefuseOverrideCore()
+    {
+        if (AdvancedInForceCore()) throw new InvalidOperationException(LinkProtocol.AdvancedLockFromLockIn);
+        if (_session.Active) throw new InvalidOperationException(LinkProtocol.LockedFromLockIn);
+        if (ScheduleInForceCore()) throw new InvalidOperationException(LinkProtocol.ScheduledLockFromLockIn);
     }
 
     private void CountSession(long nowMs, long uptimeMs)
@@ -468,6 +593,7 @@ public sealed class LockStateStore
         // setting A with the lock only if the lock is still due.
         var lockEnd = CountLock(uptimeMs);
         CountSession(nowMs, uptimeMs);
+        CountSchedule();
         return lockEnd;
     }
 

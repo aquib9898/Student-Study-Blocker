@@ -1,0 +1,9 @@
+{
+    "name":  "com.ssdb.msix_direct",
+    "description":  "t",
+    "path":  "C:\\Program Files\\WindowsApps\\Gone_1.0.0.0_x64__x\\Probe.exe",
+    "type":  "stdio",
+    "allowed_origins":  [
+                            "chrome-extension://bbdebafjnmogcdnaeogbjilmjllanjic/"
+                        ]
+}

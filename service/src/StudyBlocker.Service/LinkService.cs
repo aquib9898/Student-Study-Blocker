@@ -27,6 +27,8 @@ public sealed class LinkService
         OfferAvailable = _link.OfferAvailable,
         SessionActive = _locks.SessionActive,
         SessionBreak = _locks.SessionOnBreak,
+        ScheduleInForce = _locks.ScheduleInForce,
+        AdvancedInForce = _locks.AdvancedInForce,
     };
 
     public void EnsureOffer() => _link.EnsureOffer();
@@ -86,8 +88,24 @@ public sealed class LinkService
         _locks.OverrideEndLock();
     }
 
-    private void RefuseDuringSession()
+    // Habit Builder: LockIn hands over its whole scheduled-lock plan. LockIn is
+    // the authority on it (it only ever moves a window from tomorrow, and
+    // releases a day once the study goal is met), so a valid plan is taken
+    // as it is, inside a window too.
+    public void SetSchedule(string? secret, string? userSid, ScheduleSetRequest request)
     {
-        if (_locks.SessionActive) throw new InvalidOperationException(LinkProtocol.LockedFromLockIn);
+        _link.Require(secret, userSid);
+        _locks.SetSchedule(ScheduledLockPlan.From(request));
     }
+
+    public ScheduleReport ScheduleReport(string? secret, string? userSid, ScheduleReportRequest request)
+    {
+        _link.Require(secret, userSid);
+        var day = ScheduledLockPlan.ParseDay(request.Day);
+        return new ScheduleReport { Day = request.Day, Slots = _locks.ScheduleSlotsFor(day) };
+    }
+
+    // Unlinking (or the reload arrow) would let go of everything LockIn holds:
+    // refused during a session and inside the scheduled lock alike.
+    private void RefuseDuringSession() => _locks.RefuseLoosening();
 }

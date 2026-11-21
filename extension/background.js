@@ -3,14 +3,27 @@
 // browser starts as the current user), which relays each request to the
 // service's named pipe and hands back the reply. One request per call, to
 // match how the service answers one request per pipe connection.
+//
+// Without the desktop app (no native-messaging host registered, which is
+// what a store install on a PC without the app gets) the extension runs in
+// standalone mode (2026-11-21): its own settings from the popup
+// (settings.js), its own copy of the classifier (classifier.js), and blocked
+// sites through declarativeNetRequest instead of browser policy. Every
+// handler below asks the service first and falls back to standalone only on
+// that "no host" answer; an installed app whose service is down keeps the
+// app's behaviour (and its fail-safe).
+
+importScripts("settings.js", "classifier.js");
 
 const TAG = "[Study Blocker]";
 const HOST = "com.smartstudyblocker.host";
 const POLL_ALARM = "poll-service";
 
-// The browser's own wording when no native-messaging host is registered under
-// HOST, which is what a store install on a PC without the desktop app gets.
-// The popup shows an install notice for it, rather than a generic error.
+// The browser's own wording when the desktop app isn't installed, so
+// standalone mode applies. Chrome says the same when a host is registered but
+// its program is gone (checked 2026-11-21), which is what the Microsoft Store
+// version leaves for a few minutes after an uninstall, until its clean-up
+// task removes the registration: that case needs nothing extra here.
 const HOST_NOT_REGISTERED = /native messaging host not found/i;
 
 // Last thing the service told us, kept so the popup can show it without
@@ -55,8 +68,10 @@ async function refreshStatus() {
     await rememberLocked(reply);
   } else {
     lastStatus = { connected: false, error: reply.error ?? "unknown error", appMissing: !!reply.appMissing };
+    if (reply.appMissing) await chrome.storage.session.set({ locked: false });
   }
   console.info(TAG, "service status", JSON.stringify(lastStatus));
+  await syncSiteRules(!!lastStatus.appMissing);
   return lastStatus;
 }
 
@@ -87,15 +102,32 @@ async function getDeclutter() {
     callService({ Type: "get-status" }),
     fetch(chrome.runtime.getURL("data/declutter-selectors.json")).then((r) => r.json()),
   ]);
-  if (!reply.ok) return { ok: false, options: [], selectors: [] };
-  const rules = reply.payload?.Lock?.Rules;
-  const options = rules?.ExtensionEnabled === false ? [] : (rules?.Declutter ?? []);
-  return { ok: true, options, selectors: options.flatMap((option) => selectorMap[option] ?? []) };
+  let options;
+  if (reply.appMissing) {
+    const settings = await sbGetSettings();
+    options = settings.enabled ? settings.declutter : [];
+  } else if (!reply.ok) {
+    return { ok: false, options: [], selectors: [], css: [] };
+  } else {
+    const rules = reply.payload?.Lock?.Rules;
+    options = rules?.ExtensionEnabled === false ? [] : (rules?.Declutter ?? []);
+  }
+  // An option this copy doesn't know (a newer service) has no entry, so it
+  // simply hides nothing here.
+  return {
+    ok: true,
+    options,
+    selectors: [...new Set(options.flatMap((option) => selectorMap[option] ?? []))],
+    css: options.flatMap((option) => selectorMap["@css"]?.[option] ?? []),
+  };
 }
 
-function resumeTab(tabId) {
+// Every verdict names its video: a tab can be playing more than one (the
+// address video plus the miniplayer or a hover preview, see youtube.js), and
+// each is handled in its own player.
+function resumeTab(tabId, videoId) {
   if (tabId == null) return;
-  chrome.tabs.sendMessage(tabId, { type: "resume-video" }).catch(() => {});
+  chrome.tabs.sendMessage(tabId, { type: "resume-video", videoId: videoId ?? null }).catch(() => {});
 }
 
 // The logo for the in-page block screen, as a data URL: a content script
@@ -113,10 +145,10 @@ async function logo() {
   return logoDataUrl;
 }
 
-async function showBlockScreenTab(tabId, reason) {
+async function showBlockScreenTab(tabId, reason, videoId) {
   if (tabId == null) return;
   const image = await logo().catch(() => null);
-  chrome.tabs.sendMessage(tabId, { type: "show-block-screen", reason, logo: image }).catch(() => {});
+  chrome.tabs.sendMessage(tabId, { type: "show-block-screen", reason, logo: image, videoId: videoId ?? null }).catch(() => {});
 }
 
 // The popup's answer comes back with the channel's name (shown in the
@@ -163,6 +195,10 @@ async function handleVideoMetadata(meta, tabId) {
     callService({ Type: "get-status" }),
     callService({ Type: "classify-video", Payload: toClassifyPayload(meta) }),
   ]);
+  if (classifyReply.appMissing) {
+    applyVerdict(await sbClassify(meta, await sbGetSettings()), meta, tabId);
+    return;
+  }
   await rememberLocked(statusReply);
 
   if (!classifyReply.ok || !classifyReply.payload) {
@@ -170,16 +206,21 @@ async function handleVideoMetadata(meta, tabId) {
     // Fail-safe (plan §17): a classifier failure during a lock must never
     // behave like a silent allow. Outside a lock there's nothing to go on,
     // so the video plays.
-    if (await lastKnownLocked()) showBlockScreenTab(tabId, "couldn't reach the classifier while locked");
+    if (await lastKnownLocked()) showBlockScreenTab(tabId, "couldn't reach the classifier while locked", meta.id);
     return;
   }
 
   const { Verdict: verdict, Reason: reason, Source: source } = classifyReply.payload;
-  console.info(TAG, `verdict for ${meta.id} (${meta.title}): ${verdict} [${source}] — ${reason}`);
+  applyVerdict({ verdict, reason, source }, meta, tabId);
+}
+
+function applyVerdict({ verdict, reason, source }, meta, tabId) {
+  const where = meta.offPage ? ` {${meta.inMiniplayer ? "miniplayer" : meta.playerId}}` : "";
+  console.info(TAG, `verdict for ${meta.id} (${meta.title})${where}: ${verdict} [${source}] — ${reason}`);
 
   if (verdict === "Grey") showGreyPopupTab(tabId, reason, meta);
-  else if (verdict === "Study") resumeTab(tabId);
-  else showBlockScreenTab(tabId, reason);
+  else if (verdict === "Study") resumeTab(tabId, meta.id);
+  else showBlockScreenTab(tabId, reason, meta.id);
 }
 
 // The grey-zone popup's Allow/Block buttons land here (never straight from
@@ -194,53 +235,92 @@ async function answerGreyPopup({ channelId, channelName, videoId, decision }, ta
       VideoId: videoId ?? null,
     },
   });
+  if (setReply.appMissing) {
+    // Standalone: saved straight into the extension's own channel list. The
+    // settings change makes every YouTube tab check its videos again.
+    try {
+      await sbUpdateSettings((s) => ({
+        channels: sbSetChannel(s.channels, { id: channelId ?? null, name: channelName }, decision === "allow" ? "Allowed" : "Blocked"),
+      }));
+    } catch (e) {
+      // Refused by the lock: never a silent allow.
+      showBlockScreenTab(tabId, e.message, videoId);
+      return;
+    }
+    if (decision === "allow") resumeTab(tabId, videoId);
+    else showBlockScreenTab(tabId, "you blocked this channel", videoId);
+    return;
+  }
   if (!setReply.ok) {
     console.warn(TAG, "couldn't save the channel rule for", channelId, ":", setReply.error);
     // Fail-safe (plan §17): a Grey verdict must never resolve into silent
     // playback, even when saving the decision itself failed (e.g. the
     // during-lock ratchet refused it because another tab already blocked
     // this channel this lock).
-    showBlockScreenTab(tabId, setReply.error ?? "couldn't save your answer");
+    showBlockScreenTab(tabId, setReply.error ?? "couldn't save your answer", videoId);
     return;
   }
 
-  if (decision === "allow") resumeTab(tabId);
-  else showBlockScreenTab(tabId, "you blocked this channel");
+  if (decision === "allow") resumeTab(tabId, videoId);
+  else showBlockScreenTab(tabId, "you blocked this channel", videoId);
 }
 
-// The toolbar popup's Block channel button, the extension's one control
-// (the user's request, 2026-09-30). Blocking only ever makes things
-// stricter, so the service accepts it at any time, lock or not, unlike the
-// old Resume button, which could lift a block screen during a lock.
-async function blockChannel({ channelId, channelName, videoId }) {
-  const reply = await callService({
-    Type: "set-channel-rule",
-    Payload: { ChannelId: channelId ?? null, Name: channelName ?? null, Rule: "block", VideoId: videoId ?? null },
+// --- Standalone mode: blocked sites and settings changes ---
+
+// Blocked sites without the app: one declarativeNetRequest "block" rule per
+// site (main page and frames). Blocking needs no host permission, unlike a
+// redirect, so the browser shows its own error for a moment and the
+// onErrorOccurred listener below swaps in blocked.html, as it does for the
+// app's policy blocks. With the app installed, or switched off, there are no
+// rules: the app's browser policy does the blocking.
+let siteRulesShown = null;
+async function syncSiteRules(standalone) {
+  const settings = standalone ? await sbGetSettings() : null;
+  const sites = settings?.enabled ? settings.blockedSites : [];
+  const key = JSON.stringify(sites);
+  if (key === siteRulesShown) return;
+  const existing = await chrome.declarativeNetRequest.getDynamicRules();
+  const addRules = sites.map((site, i) => {
+    const [host, ...rest] = site.split("/");
+    const path = rest.join("/");
+    return {
+      id: i + 1,
+      priority: 1,
+      action: { type: "block" },
+      condition: {
+        ...(path ? { urlFilter: `||${host}/${path}` } : { requestDomains: [host] }),
+        resourceTypes: ["main_frame", "sub_frame"],
+      },
+    };
   });
-  if (!reply.ok) return { ok: false, error: reply.error ?? "couldn't reach the app" };
-  // Every open YouTube tab checks its video again, so this one, and any
-  // other showing a video from this channel, is blocked straight away.
-  const tabs = await chrome.tabs.query({ url: "*://*.youtube.com/*" });
-  for (const tab of tabs) chrome.tabs.sendMessage(tab.id, { type: "recheck-video" }).catch(() => {});
-  return { ok: true };
+  try {
+    await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds: existing.map((r) => r.id), addRules });
+    siteRulesShown = key;
+    console.info(TAG, `standalone blocked sites: ${sites.length ? sites.join(", ") : "none"}`);
+  } catch (e) {
+    console.warn(TAG, "couldn't update the blocked-site rules", e);
+  }
 }
 
-// Which list a channel is on, if any, for the popup: an entry saved with the
-// channel's id first, otherwise one typed into the app by its name, the same
-// order the service checks them in.
-async function channelDecision({ channelId, channelName }) {
-  const reply = await callService({ Type: "list-channel-rules" });
-  if (!reply.ok) return { ok: false, error: reply.error ?? "couldn't reach the app" };
-  const rules = reply.payload ?? [];
-  const sameName = (a, b) => !!a?.trim() && !!b?.trim() && a.trim().toLowerCase() === b.trim().toLowerCase();
-  const rule = (channelId && rules.find((r) => r.ChannelId === channelId))
-    || rules.find((r) => !r.ChannelId && sameName(r.Name, channelName));
-  return { ok: true, decision: rule?.Decision ?? null };
-}
+// The popup saved a standalone setting (or the grey-zone popup did): apply
+// it now rather than at the next page load. Sites through syncSiteRules; open
+// YouTube tabs check their videos again, so a newly blocked channel
+// applies at once and a removed block lifts.
+// declutter.js listens for the same change itself.
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area !== "local" || !changes[SB_SETTINGS_KEY]) return;
+  refreshStatus().then(async () => {
+    if (!lastStatus.appMissing) return;
+    const tabs = await chrome.tabs.query({ url: "*://*.youtube.com/*" });
+    for (const tab of tabs) chrome.tabs.sendMessage(tab.id, { type: "recheck-video" }).catch(() => {});
+  });
+});
 
-// Every message here is a status read or part of enforcement, apart from
-// Block channel above. There are deliberately no other controls in the
-// extension (no pause/resume, no settings): those live in the desktop app.
+// Every message here is a status read or part of enforcement. With the app
+// installed the extension has no controls at all (its popup says "Control
+// from App", the user's request, 2026-11-21); in standalone mode the popup
+// edits its settings in storage directly, and the listener above applies
+// them.
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   switch (message?.type) {
     case "get-status":
@@ -259,12 +339,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     case "get-declutter":
       getDeclutter().then(sendResponse);
       return true;
-    case "channel-decision":
-      channelDecision(message).then(sendResponse);
-      return true;
-    case "block-channel":
-      blockChannel(message).then(sendResponse);
-      return true;
     default:
       sendResponse({ ok: false, error: "unknown message" });
       return false;
@@ -278,8 +352,21 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 // Smart Study Distraction Blocker". The policy still does the blocking,
 // whether or not the extension is running (plan §17); this only changes
 // what the page looks like. Switched off in the app, the service lifts the
-// policy, so nothing gets here.
+// policy, so nothing gets here. In standalone mode the block is the
+// extension's own (syncSiteRules), which the browser reports as
+// ERR_BLOCKED_BY_CLIENT; that error also comes from other extensions (ad
+// blockers), so it only counts when one of our own blocked sites covers the
+// address.
 const BLOCKED_PAGE = chrome.runtime.getURL("blocked.html");
+
+async function blockedByUs(details) {
+  if (details.error.includes("ERR_BLOCKED_BY_ADMINISTRATOR")) return true;
+  if (!details.error.includes("ERR_BLOCKED_BY_CLIENT")) return false;
+  // Rules exist only while standalone mode is on (see syncSiteRules).
+  if (!(await chrome.declarativeNetRequest.getDynamicRules()).length) return false;
+  const settings = await sbGetSettings();
+  return settings.enabled && settings.blockedSites.some((site) => sbSiteCovers(site, details.url));
+}
 
 // Where each tab was when its latest navigation started (in MV3, tab.url is
 // the last page a tab actually showed), so that going Back from
@@ -295,7 +382,7 @@ chrome.webNavigation.onBeforeNavigate.addListener((details) => {
 
 chrome.webNavigation.onErrorOccurred.addListener(async (details) => {
   if (details.frameId !== 0 || details.documentLifecycle === "prerender") return;
-  if (!details.error.includes("ERR_BLOCKED_BY_ADMINISTRATOR")) return;
+  if (!(await blockedByUs(details))) return;
   const from = await (navigationStartedFrom.get(details.tabId) ?? "");
   navigationStartedFrom.delete(details.tabId);
 

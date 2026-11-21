@@ -1,0 +1,59 @@
+﻿**********************
+Windows PowerShell transcript start
+Start time: 20261121085218
+Username: AQUIB\noors
+RunAs User: AQUIB\noors
+Configuration Name: 
+Machine: AQUIB (Microsoft Windows NT 10.0.26200.0)
+Host Application: C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe -NoProfile -ExecutionPolicy Bypass -File D:\Student-Study-Blocker\msix-test\run-cleanup-test.ps1
+Process ID: 9312
+PSVersion: 5.1.26100.9818
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.26100.9818
+BuildVersion: 10.0.26100.9818
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+=== 1. Install the MSIX; its service writes the keys and registers the clean-up task ===
+Installed.
+time: 2026-11-21T08:52:22.8393523+05:30
+account: NT AUTHORITY\SYSTEM
+package identity: SSDB.MsixProbe_1.0.0.2_x64__1z9d3s4827c4g
+exe: C:\Program Files\WindowsApps\SSDB.MsixProbe_1.0.0.2_x64__1z9d3s4827c4g\Probe.exe
+WRITE OK  Chrome policy (unknown, harmless name): HKLM\SOFTWARE\Policies\Google\Chrome [SSDBMsixProbe] -> service reads back 'written by packaged service'
+WRITE OK  IFEO Debugger for a made-up exe: HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\ssdb-msix-probe.exe [Debugger] -> service reads back 'probe'
+WRITE OK  Chrome native-messaging host: HKLM\SOFTWARE\Google\Chrome\NativeMessagingHosts\com.ssdb.msix_probe [(default)] -> service reads back 'C:\ssdb-msix-probe.json'
+FILE OK   C:\ProgramData\SSDBMsixProbe\probe.txt
+TASK OK   schtasks exit 0: SUCCESS: The scheduled task "SSDB MSIX Probe Cleanup" has successfully been created.
+Present while installed: Chrome policy, IFEO Debugger, Native-messaging host, Scheduled task, ProgramData folder
+--- The registered task ---
+TaskName:                             \SSDB MSIX Probe Cleanup
+Status:                               Ready
+Task To Run:                          powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "C:\ProgramData\SSDBMsixProbe\cleanup.ps1"
+Run As User:                          SYSTEM
+Repeat: Every:                        N/A
+TaskName:                             \SSDB MSIX Probe Cleanup
+Status:                               Ready
+Task To Run:                          powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "C:\ProgramData\SSDBMsixProbe\cleanup.ps1"
+Run As User:                          SYSTEM
+Repeat: Every:                        0 Hour(s), 1 Minute(s)
+=== 2. Let the task run once while the app is installed: it must change nothing ===
+Present after a run with the app installed: Chrome policy, IFEO Debugger, Native-messaging host, Scheduled task, ProgramData folder
+Clean-up log so far: empty (good)
+=== 3. Uninstall the MSIX and wait for the task (every minute) ===
+Service still registered: False
+Left right after uninstall: Chrome policy, IFEO Debugger, Native-messaging host, Scheduled task, ProgramData folder
+Left after waiting 29 s: NOTHING
+--- Clean-up log (written by the task as SYSTEM) ---
+2026-11-21T08:53:01.6306342+05:30 service gone: removing the app's settings
+2026-11-21T08:53:01.7962596+05:30 task deleted; removing its own folder
+=== 4. Did Microsoft Defender flag anything during the test? ===
+No Defender detections since the test started.
+=== 5. Safety net: remove anything the test left, untrust the certificate ===
+Final leftovers: none; package installed: False; certificate trusted: False
+**********************
+Windows PowerShell transcript end
+End time: 20261121085305
+**********************

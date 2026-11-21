@@ -1,0 +1,28 @@
+﻿**********************
+Windows PowerShell transcript start
+Start time: 20261121083824
+Username: AQUIB\noors
+RunAs User: AQUIB\noors
+Configuration Name: 
+Machine: AQUIB (Microsoft Windows NT 10.0.26200.0)
+Host Application: C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe -NoProfile -ExecutionPolicy Bypass -File D:\Student-Study-Blocker\msix-test\run-host-admin.ps1
+Process ID: 26752
+PSVersion: 5.1.26100.9818
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.26100.9818
+BuildVersion: 10.0.26100.9818
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+Installed.
+Install location: C:\Program Files\WindowsApps\SSDB.MsixProbe_1.0.0.1_x64__1z9d3s4827c4g
+Chrome test finished: True
+Package still installed: False
+Alias still there: False
+Test certificate still trusted: False
+**********************
+Windows PowerShell transcript end
+End time: 20261121083836
+**********************

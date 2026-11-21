@@ -1,0 +1,54 @@
+/* Every colour of the popup (popup.html) and the blocked-site page
+   (blocked.html), in one place. The YouTube block screen and grey-zone popup
+   have theirs at the top of content/overlay.js (THEME).
+
+   Light theme, picked with Tinta (OKLCH maths, seed #4aa6ff at hue 250):
+   a plain pale-sky page with white cards (no gradient), quiet blue-grey text,
+   so the solid buttons are the only strong colour and draw the eye.
+   Harmony: monochromatic blue for everything structural, plus split-
+   complementary accents used only for meaning: rust (hue ~40) for blocking,
+   amber (hue ~75) for warnings, petrol teal (blue's neighbour) for "OK".
+   Every text colour passes WCAG AA on the background it sits on.
+   Change any value and reload the extension to see it. */
+:root {
+  color-scheme: light;
+
+  /* Backgrounds, from the page up. Flat colours, no gradient. */
+  --bg: #f2f8ff;               /* the page: pale sky (Tinta blue step 50) */
+  --bg-glow: transparent;      /* kept for compatibility: no glow */
+  --card: #ffffff;             /* cards and the YouTube section */
+  --card-border: #deeeff;      /* blue step 100 */
+  --field: #ffffff;            /* text boxes */
+  --field-border: #bedfff;     /* blue step 200 */
+  --field-underline: #90c6ff;  /* blue step 300 */
+  --button: #ffffff;           /* plain (secondary) buttons stay quiet */
+  --button-hover: #f2f8ff;
+  --button-border: #bedfff;
+
+  /* Text: navy, never pure black. */
+  --text: #0f2238;             /* 16:1 on white */
+  --text-2: #3e5a7a;           /* secondary, 7.1:1 */
+  --text-3: #536d8c;           /* hints, placeholders, >= 4.5:1 */
+
+  /* The focus: solid buttons and switches. */
+  --accent: #0060a9;           /* Lock button, switches on, slider (Tinta primary) */
+  --accent-soft: #0060a9;      /* links */
+  --on-accent: #ffffff;        /* 6.5:1 on the blue */
+  --mark: #0060a9;             /* the logo */
+  --mark-glow: transparent;    /* no glow on a light page */
+
+  /* Lines. */
+  --divider: #deeeff;
+  --rail: #bedfff;             /* the line beside sub-options */
+
+  /* Meaning (split-complementary accents). */
+  --ok: #006a6e;               /* "App connected" (petrol teal) */
+  --error: #c00013;            /* 6.5:1 on white */
+  --block: #8c4e37;            /* Block channel (rust, Tinta tertiary) */
+  --block-text: #ffffff;       /* 6.4:1 on the rust */
+  --caution-bg: #fff4e3;       /* "Breaking the lock early" banner (amber tint) */
+  --caution-border: #ffddb0;   /* Tinta warning-container */
+  --danger-icon: #c00013;      /* the "blocked" sign beside Blocked sites */
+  --backdrop: rgba(15, 34, 56, 0.35); /* behind the confirm box */
+  --shadow: rgba(15, 34, 56, 0.15);
+}

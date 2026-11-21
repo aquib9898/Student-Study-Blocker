@@ -24,22 +24,28 @@ public sealed record PolicyApplyResult(IReadOnlyList<string> Applied, IReadOnlyL
 // service's back is written again and reported as Repaired.
 public sealed class PolicyWriter
 {
-    private const string LedgerFile = "policy-ledger.json";
+    public const string LedgerFile = "policy-ledger.json";
 
     private readonly IPolicyRegistry _registry;
     private readonly IStateStore _store;
     private readonly string? _appBlockLauncher;
+    private readonly Action<IReadOnlyCollection<ManagedPolicy>>? _ledgerSaved;
     private readonly object _gate = new();
     private readonly Dictionary<string, ManagedPolicy> _ledger;
     private readonly Dictionary<string, JsonElement> _lastWritten = new();
 
     // `appBlockLauncher`: the desktop app that blocked programs open instead
     // (AppBlockPolicies); null to block programs through AppWatcher only.
-    public PolicyWriter(IPolicyRegistry registry, IStateStore store, string? appBlockLauncher = null)
+    // `ledgerSaved`: told the whole ledger each time it is saved (the
+    // Microsoft Store version keeps its uninstall clean-up's restore plan
+    // current with it, see Packaging.PackagedInstall).
+    public PolicyWriter(IPolicyRegistry registry, IStateStore store, string? appBlockLauncher = null,
+        Action<IReadOnlyCollection<ManagedPolicy>>? ledgerSaved = null)
     {
         _registry = registry;
         _store = store;
         _appBlockLauncher = appBlockLauncher;
+        _ledgerSaved = ledgerSaved;
         _ledger = (store.Read<List<ManagedPolicy>>(LedgerFile) ?? [])
             .ToDictionary(m => PolicySetting.IdFor(m.KeyPath, m.Name, m.IsList));
     }
@@ -124,7 +130,12 @@ public sealed class PolicyWriter
         return JsonSerializer.SerializeToElement(items);
     }
 
-    private void SaveLedger() => _store.Write(LedgerFile, _ledger.Values.ToList());
+    private void SaveLedger()
+    {
+        var ledger = _ledger.Values.ToList();
+        _store.Write(LedgerFile, ledger);
+        _ledgerSaved?.Invoke(ledger);
+    }
 
     private static string Describe(string keyPath, string name, JsonElement value) =>
         $@"{keyPath}\{name} = {Show(value)}";

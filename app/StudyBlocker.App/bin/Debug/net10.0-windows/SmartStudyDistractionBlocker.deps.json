@@ -1,0 +1,39 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v10.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v10.0": {
+      "SmartStudyDistractionBlocker/0.5.2": {
+        "dependencies": {
+          "StudyBlocker.Common": "1.0.0"
+        },
+        "runtime": {
+          "SmartStudyDistractionBlocker.dll": {}
+        }
+      },
+      "StudyBlocker.Common/1.0.0": {
+        "runtime": {
+          "StudyBlocker.Common.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "SmartStudyDistractionBlocker/0.5.2": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "StudyBlocker.Common/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}

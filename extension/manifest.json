@@ -1,11 +1,11 @@
 {
   "manifest_version": 3,
   "name": "Smart Study Distraction Blocker",
-  "version": "0.11.4",
-  "description": "Blocks YouTube distractions and listed sites while you study. Needs the Smart Study Distraction Blocker Windows app.",
+  "version": "0.12.0",
+  "description": "Blocks YouTube distractions and listed websites while you study. Install the SSDB Windows app to make your lock truly unbreakable.",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAuzQuLe5ltBG2lphdowAlPhDgpU/t9N8FxQCJFJjZkREtgee8Wo5YIe+Qvl6oLiKvhBrG5DiZ6C5ImmK7vMJdsblQhPJpPm2IW7+K6tZeLeg4QrTgksvXhs5zx7wkT2uXBuAAtmMTOWCeTeuhle9S4m7i8O7b413j0xqeSsx3VpRH/AE6+9OORhBZlltyrB0DhVDdLex2lIG1SOlqicox9ehLfNClUjhfXHE21ONJM5zrm2MtNVsXC+dKW1UdB4rOSZhxubtEw9QzrofXVsxUxgPYYuZuKTAWQsc4VM4mpkRyKaGPQCBAuuGdnrFHtuK1sRJsEUp0ffwIkYfqAz2BrwIDAQAB",
   "minimum_chrome_version": "116",
-  "permissions": ["nativeMessaging", "storage", "tabs", "alarms", "webNavigation"],
+  "permissions": ["nativeMessaging", "storage", "tabs", "alarms", "webNavigation", "declarativeNetRequest"],
   "host_permissions": ["*://*.youtube.com/*"],
   "background": { "service_worker": "background.js" },
   "action": {

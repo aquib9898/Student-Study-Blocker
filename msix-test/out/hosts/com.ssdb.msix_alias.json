@@ -1,0 +1,9 @@
+{
+    "name":  "com.ssdb.msix_alias",
+    "description":  "SSDB MSIX test",
+    "path":  "C:\\Users\\noors\\AppData\\Local\\Microsoft\\WindowsApps\\ssdb-msix-host.exe",
+    "type":  "stdio",
+    "allowed_origins":  [
+                            "chrome-extension://bbdebafjnmogcdnaeogbjilmjllanjic/"
+                        ]
+}

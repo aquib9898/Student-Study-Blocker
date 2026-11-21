@@ -13,6 +13,8 @@ const string Usage = """
                   [--declutter-home-feed] [--declutter-recommended] [--declutter-end-screen]
                   [--declutter-autoplay] [--declutter-comments] [--declutter-trending]
                   [--declutter-live-chat] [--declutter-subscriptions] [--declutter-playlists]
+                  [--declutter-<Option>]... (any DeclutterOption by name, e.g.
+                  --declutter-VideoSidebar, --declutter-TopHeader)
                   [--block-app <program.exe>]...
                   (sets the whole rule set; no options clears it. During a
                   lock, sites and Declutter options can only be added, and
@@ -108,6 +110,9 @@ static RuleSet ParseRules(string[] options)
             case "--declutter-live-chat": declutter.Add(DeclutterOption.LiveChat); break;
             case "--declutter-subscriptions": declutter.Add(DeclutterOption.SubscriptionsFeed); break;
             case "--declutter-playlists": declutter.Add(DeclutterOption.Playlists); break;
+            case var named when named.StartsWith("--declutter-") && Enum.TryParse<DeclutterOption>(named["--declutter-".Length..], out var option):
+                declutter.Add(option);
+                break;
             case "--block-app" when i + 1 < options.Length: apps.Add(new BlockedApp { Exe = options[++i] }); break;
             default: throw new ArgumentException($"Unknown or incomplete option '{options[i]}'.");
         }

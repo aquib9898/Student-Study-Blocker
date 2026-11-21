@@ -1,0 +1,9 @@
+{
+    "name":  "com.ssdb.msix_control",
+    "description":  "t",
+    "path":  "D:\\Student-Study-Blocker\\msix-test\\layout\\Probe.exe",
+    "type":  "stdio",
+    "allowed_origins":  [
+                            "chrome-extension://bbdebafjnmogcdnaeogbjilmjllanjic/"
+                        ]
+}

@@ -73,7 +73,7 @@ function Remove-32BitCopy {
         # A browser may have started the old native host again meanwhile; with
         # the entries above gone, the next one it starts is the real one.
         Get-Process StudyBlocker.NativeHost -ErrorAction SilentlyContinue |
-            Where-Object { $_.Path -like "$strayDir\*" } | Stop-Process -Force
+            Where-Object { $_.Path -like "$strayDir\*" } | Stop-Process -Force -ErrorAction SilentlyContinue
         # Nothing uses it any more, so one that won't go isn't worth failing for.
         try {
             Remove-Folder $strayDir
@@ -170,15 +170,15 @@ function Stop-Everything {
     }
     foreach ($process in @(Get-Process StudyBlocker.Service -ErrorAction SilentlyContinue)) {
         Write-Host "  stopping the service started from PowerShell (you can close that window)"
-        Stop-Process -Id $process.Id -Force
+        Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
         Wait-Process -Id $process.Id -Timeout 30 -ErrorAction SilentlyContinue
     }
     foreach ($process in @(Get-Process SmartStudyDistractionBlocker, StudyBlocker -ErrorAction SilentlyContinue)) {
         Write-Host "  closing the app"
         $process.CloseMainWindow() | Out-Null
-        if (-not $process.WaitForExit(3000)) { Stop-Process -Id $process.Id -Force }
+        if (-not $process.WaitForExit(3000)) { Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue }
     }
-    Get-Process StudyBlocker.NativeHost -ErrorAction SilentlyContinue | Stop-Process -Force
+    Get-Process StudyBlocker.NativeHost -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
 }
 
 # Deletes a folder, retrying briefly in case something still has a file

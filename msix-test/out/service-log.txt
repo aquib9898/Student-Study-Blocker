@@ -1,0 +1,9 @@
+time: 2026-11-21T08:52:22.8393523+05:30
+account: NT AUTHORITY\SYSTEM
+package identity: SSDB.MsixProbe_1.0.0.2_x64__1z9d3s4827c4g
+exe: C:\Program Files\WindowsApps\SSDB.MsixProbe_1.0.0.2_x64__1z9d3s4827c4g\Probe.exe
+WRITE OK  Chrome policy (unknown, harmless name): HKLM\SOFTWARE\Policies\Google\Chrome [SSDBMsixProbe] -> service reads back 'written by packaged service'
+WRITE OK  IFEO Debugger for a made-up exe: HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\ssdb-msix-probe.exe [Debugger] -> service reads back 'probe'
+WRITE OK  Chrome native-messaging host: HKLM\SOFTWARE\Google\Chrome\NativeMessagingHosts\com.ssdb.msix_probe [(default)] -> service reads back 'C:\ssdb-msix-probe.json'
+FILE OK   C:\ProgramData\SSDBMsixProbe\probe.txt
+TASK OK   schtasks exit 0: SUCCESS: The scheduled task "SSDB MSIX Probe Cleanup" has successfully been created.

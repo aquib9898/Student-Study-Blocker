@@ -1,0 +1,4 @@
+09:08:11.988 LAUNCHED exe=D:\Student-Study-Blocker\msix-test\layout\Probe.exe identity=(none) elevated=False args=chrome-extension://bbdebafjnmogcdnaeogbjilmjllanjic/ --parent-window=0
+09:08:11.996 MESSAGE {"ping":"com.ssdb.msix_control"}
+09:08:12.205 LAUNCHED exe=D:\Student-Study-Blocker\msix-test\layout\Probe.exe identity=(none) elevated=False args=chrome-extension://bbdebafjnmogcdnaeogbjilmjllanjic/ --parent-window=0
+09:08:12.214 MESSAGE {"results":{"com.ssdb.msix_control":{"reply":{"ok":true,"exe":"D:\\Student-Study-Blocker\\msix-test\\layout\\Probe.exe","identity":"(none)","elevated":false}},"com.ssdb.msix_direct":{"error":"Specified native messaging host not found."},"com.ssdb.msix_alias":{"error":"Specified native messaging host not found."}}}

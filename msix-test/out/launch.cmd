@@ -1,0 +1,1 @@
+@start "" "C:\Users\noors\.cache\puppeteer\chrome\win64-148.0.7778.97\chrome-win64\chrome.exe" --user-data-dir="D:\Student-Study-Blocker\msix-test\out\chrome-profile" --load-extension="D:\Student-Study-Blocker\msix-test\ext" --disable-extensions-except="D:\Student-Study-Blocker\msix-test\ext" --no-first-run --no-default-browser-check about:blank

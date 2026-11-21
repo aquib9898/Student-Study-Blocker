@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Test package only. Test 2: Probe.exe as a Chrome native-messaging host, by its WindowsApps path and by an alias. -->
+<Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+         xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+         xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+         xmlns:desktop6="http://schemas.microsoft.com/appx/manifest/desktop/windows10/6"
+         xmlns:uap5="http://schemas.microsoft.com/appx/manifest/uap/windows10/5"
+         IgnorableNamespaces="uap rescap desktop6 uap5">
+  <Identity Name="SSDB.MsixProbe" Publisher="CN=SSDB MSIX Probe" Version="1.0.0.2" ProcessorArchitecture="x64" />
+  <Properties>
+    <DisplayName>SSDB MSIX Probe</DisplayName>
+    <PublisherDisplayName>SSDB test</PublisherDisplayName>
+    <Logo>Assets\StoreLogo.png</Logo>
+  </Properties>
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.19041.0" MaxVersionTested="10.0.26100.0" />
+  </Dependencies>
+  <Resources>
+    <Resource Language="en-us" />
+  </Resources>
+  <Applications>
+    <Application Id="Probe" Executable="Probe.exe" EntryPoint="Windows.FullTrustApplication">
+      <uap:VisualElements DisplayName="SSDB MSIX Probe" Description="SSDB MSIX test" BackgroundColor="transparent"
+                          Square150x150Logo="Assets\Square150.png" Square44x44Logo="Assets\Square44.png" AppListEntry="none" />
+      <Extensions>
+        <!-- Test 2: an app execution alias, a second way for Chrome to start the host. -->
+        <uap5:Extension Category="windows.appExecutionAlias" Executable="Probe.exe" EntryPoint="Windows.FullTrustApplication">
+          <uap5:AppExecutionAlias>
+            <uap5:ExecutionAlias Alias="ssdb-msix-host.exe" />
+          </uap5:AppExecutionAlias>
+        </uap5:Extension>
+        <!-- Test 3: the packaged service registers a clean-up task that must outlive the package. -->
+        <desktop6:Extension Category="windows.service" Executable="Probe.exe" EntryPoint="Windows.FullTrustApplication">
+          <desktop6:Service Name="SSDBMsixProbe" StartupType="auto" StartAccount="localSystem" />
+        </desktop6:Extension>
+      </Extensions>
+    </Application>
+  </Applications>
+  <Capabilities>
+    <rescap:Capability Name="runFullTrust" />
+    <rescap:Capability Name="packagedServices" />
+    <rescap:Capability Name="localSystemServices" />
+  </Capabilities>
+</Package>

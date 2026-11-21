@@ -1,0 +1,1 @@
+{"results":{"com.ssdb.msix_control":{"reply":{"ok":true,"exe":"D:\\Student-Study-Blocker\\msix-test\\layout\\Probe.exe","identity":"(none)","elevated":false}},"com.ssdb.msix_direct":{"error":"Specified native messaging host not found."},"com.ssdb.msix_alias":{"error":"Specified native messaging host not found."}}}

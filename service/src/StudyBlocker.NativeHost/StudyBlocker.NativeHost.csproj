@@ -7,7 +7,7 @@
     <Nullable>enable</Nullable>
     <AssemblyName>StudyBlocker.NativeHost</AssemblyName>
     <InvariantGlobalization>true</InvariantGlobalization>
-    <Version>0.4.4</Version>
+    <Version>0.5.2</Version>
   </PropertyGroup>
 
   <ItemGroup>

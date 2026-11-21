@@ -303,20 +303,31 @@ Plan §9's checklist of "algorithmic/temptation surfaces" to hide: home
 feed, recommended videos, end-screen suggestions, autoplay, comments,
 trending/explore, live chat, subscriptions feed, and (2026-11-09) the
 playlist panel beside a video watched from a playlist (`Playlists`).
+On 2026-11-21 the user asked for their full YouTube list, which appended
+13 more: `RedirectHomeToSubscriptions`, `VideoSidebar`, `Fundraiser`,
+`EndScreenCards`, `Shorts`, `Mixes`, `MerchTicketsOffers`, `VideoInfo`,
+`TopHeader`, `Notifications`, `InaptSearchResults`, `MoreFromYouTube`,
+`Annotations` (22 in all). Values travel and are stored by name, so an
+older extension just ignores a name it doesn't know, and
+`DeclutterTests` fails if an option has no entry in the extension's
+selector file.
 
 - `RuleSet.Declutter` is a plain list of `DeclutterOption` values, next
   to `BlockedDomains`. It's the same shape of thing (a profile setting
   that can only grow during a lock), so it rides the existing
   `IsAtLeastAsStrictAs` ratchet: `update-rules` refuses to drop an entry
-  while locked. It's set from the app's "Hide on YouTube" boxes, or with
-  `sbctl rules --declutter-comments ...`.
+  while locked. It's set from the app's "Hide on YouTube" switches, or with
+  `sbctl rules --declutter-comments ...` (any option also by its name:
+  `--declutter-VideoSidebar`).
 - The service only tracks which options are ticked; it has no opinion on
   *how* to hide anything. The DOM selectors for each option live entirely
   in `../extension/data/declutter-selectors.json`, read only by the
   extension. When YouTube redesigns something, only that JSON file needs
   fixing, never this service.
 - Per plan §9, this only hides feed and recommendation surfaces; it never
-  blocks navigation. Search, subscriptions, a playlist's own page and any video opened
+  blocks navigation (the one exception, by request: `RedirectHomeToSubscriptions`
+  sends youtube.com/ to the subscriptions feed; and `Autoplay` also switches
+  the player's autoplay off). Search, subscriptions, a playlist's own page and any video opened
   directly keep working. An opened video is still classified and enforced
   as usual; Declutter only changes what's visible *around* it. Shorts are
   blocked during every lock regardless, by the lockdown's

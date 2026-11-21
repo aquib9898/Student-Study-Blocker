@@ -12,11 +12,11 @@ using System.Reflection;
 
 [assembly: System.Reflection.AssemblyCompanyAttribute("SmartStudyDistractionBlocker")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
-[assembly: System.Reflection.AssemblyFileVersionAttribute("0.4.5.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("0.4.5+aa1dd8a788374e04ca04d163c0033020e4404906")]
+[assembly: System.Reflection.AssemblyFileVersionAttribute("0.5.2.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("0.5.2+63a47a936af929acd91f6bbd2e29c997e658df1c")]
 [assembly: System.Reflection.AssemblyProductAttribute("Smart Study Distraction Blocker")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Smart Study Distraction Blocker")]
-[assembly: System.Reflection.AssemblyVersionAttribute("0.4.5.0")]
+[assembly: System.Reflection.AssemblyVersionAttribute("0.5.2.0")]
 [assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
 [assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
 

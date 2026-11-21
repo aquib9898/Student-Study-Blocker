@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Smart Study Distraction Blocker</title>
+    <!-- Every colour is in theme.css (the colored copy's one place to experiment). -->
+    <link rel="stylesheet" href="theme.css" />
+    <style>
+      * { box-sizing: border-box; }
+      html, body { margin: 0; background: var(--bg); color: var(--text); }
+      body { background: var(--bg); }
+      body {
+        width: 360px;
+        padding: 16px 16px 18px;
+        font: 13px/1.4 "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+      }
+      [hidden] { display: none !important; }
+      button, input { font: inherit; color: inherit; }
+
+      .top { display: flex; align-items: center; gap: 10px; }
+      /* The emblem in the text colour, like the app's header. */
+      .mark {
+        flex: none;
+        width: 32px;
+        height: 32px;
+        background: var(--mark);
+        -webkit-mask: url(images/logo-mark.png) center / contain no-repeat;
+        mask: url(images/logo-mark.png) center / contain no-repeat;
+      }
+      /* The glow sits on a wrapper: a mask would clip it. */
+      .mark-glow { flex: none; display: flex; filter: drop-shadow(0 0 6px var(--mark-glow)); }
+      .titles { flex: 1; min-width: 0; }
+      h1 { margin: 0; font-size: 15px; font-weight: 600; line-height: 1.25; }
+      .status { margin: 2px 0 0; color: var(--text-2); font-size: 12.5px; }
+
+      /* --- The lock --- */
+      .lock-row { margin-top: 14px; }
+      .button.accent { min-width: 96px; border-color: var(--accent); background: var(--accent); color: var(--on-accent); font-weight: 600; }
+      .button.accent:hover { background: var(--accent); filter: brightness(0.92); }
+      #lock-times .section { margin-top: 14px; }
+      #custom-area { margin-top: 4px; }
+      .custom-head { display: flex; align-items: center; gap: 8px; }
+      .custom-length { flex: 1; font-size: 15px; font-weight: 600; }
+      #custom-slider { width: 100%; margin: 8px 0 0; accent-color: var(--accent); }
+      .scale { position: relative; display: flex; justify-content: space-between; color: var(--text-2); font-size: 11.5px; }
+      /* Sits under the slider's 1-day stop, which is past the middle (popup.js places it). */
+      .scale-day { position: absolute; transform: translateX(-50%); }
+      .break-banner {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 14px;
+        padding: 8px 8px 8px 12px;
+        border-radius: 4px;
+        background: var(--caution-bg);
+        border: 1px solid var(--caution-border);
+        font-size: 12.5px;
+      }
+      .break-banner span { flex: 1; }
+      #break-button { margin-top: 10px; }
+      .confirm { position: fixed; inset: 0; z-index: 10; display: flex; align-items: center; padding: 16px; background: var(--backdrop); }
+      .confirm-box { width: 100%; padding: 16px; border-radius: 8px; background: var(--card); border: 1px solid var(--field-border); box-shadow: 0 8px 24px var(--shadow); }
+      .confirm-box p { margin: 0; font-weight: 600; font-size: 14px; }
+      .confirm-box .confirm-detail { margin-top: 6px; font-weight: 400; font-size: 12.5px; color: var(--text-2); }
+      .confirm-buttons { display: flex; gap: 8px; margin-top: 14px; }
+      .confirm-buttons .button { flex: 1; }
+
+      /* --- App installed --- */
+      .app-view { margin-top: 18px; padding: 16px; border-radius: 8px; background: var(--card); border: 1px solid var(--card-border); }
+      .control-from-app { margin: 0; font-size: 16px; font-weight: 600; }
+      .app-state { margin: 4px 0 0; color: var(--text-2); display: flex; align-items: center; gap: 7px; }
+      .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); }
+      .dot.bad { background: var(--error); }
+
+      /* --- Standalone --- */
+      .promo { margin: 14px 0 0; color: var(--text-2); font-size: 12px; }
+      .promo a { color: var(--accent-soft); }
+      .off-note { margin: 10px 0 0; color: var(--text-2); font-size: 12px; }
+      details.youtube + .section { margin-top: 18px; }
+
+      .section { display: flex; align-items: center; gap: 7px; margin: 18px 0 8px; font-size: 12.5px; font-weight: 400; color: var(--text-2); }
+      .section svg { width: 15px; height: 15px; }
+      hr { border: 0; border-top: 1px solid var(--divider); margin: 18px 0 0; }
+
+      .add-row { display: flex; gap: 6px; }
+      .add-row input {
+        flex: 1;
+        min-width: 0;
+        padding: 6px 10px;
+        border: 1px solid var(--field-border);
+        border-bottom-color: var(--field-underline);
+        border-radius: 4px;
+        background: var(--field);
+        outline: none;
+      }
+      .add-row input:focus { border-bottom: 2px solid var(--accent); padding-bottom: 5px; }
+      .add-row input::placeholder { color: var(--text-3); }
+      .button {
+        flex: none;
+        min-width: 60px;
+        padding: 6px 12px;
+        border: 1px solid var(--button-border);
+        border-radius: 4px;
+        background: var(--button);
+        cursor: pointer;
+      }
+      .button:hover { background: var(--button-hover); }
+      .error { margin: 6px 0 0; color: var(--error); font-size: 12px; }
+
+      details.card { margin-top: 6px; border-radius: 6px; background: var(--card); border: 1px solid var(--card-border); }
+      details.card > summary {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 12px;
+        cursor: pointer;
+        list-style: none;
+        user-select: none;
+      }
+      details.card > summary::-webkit-details-marker { display: none; }
+      details.card > summary::after {
+        content: "";
+        margin-left: auto;
+        width: 7px;
+        height: 7px;
+        border: solid var(--text-2);
+        border-width: 0 1.5px 1.5px 0;
+        transform: translateY(-2px) rotate(45deg);
+        transition: transform 0.15s;
+      }
+      details.card[open] > summary::after { transform: translateY(2px) rotate(-135deg); }
+      .card-body { padding: 0 12px 12px; }
+      details.youtube { margin-top: 18px; }
+      details.youtube > summary { padding: 12px; font-size: 14px; font-weight: 600; }
+      details.youtube > summary svg { width: 24px; height: 17px; }
+      details.youtube .section:first-child { margin-top: 2px; }
+
+      .list { list-style: none; margin: 0; padding: 0 12px 10px; }
+      .card-body .list { padding: 0; margin-top: 6px; }
+      .row { display: flex; align-items: center; gap: 8px; padding: 5px 0; }
+      .row + .row { border-top: 1px solid var(--divider); }
+      .row-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .tag { flex: none; color: var(--text-3); font-size: 11.5px; }
+      .remove {
+        flex: none;
+        width: 22px;
+        height: 22px;
+        border: 0;
+        border-radius: 4px;
+        background: transparent;
+        color: var(--text-2);
+        font-size: 15px;
+        line-height: 1;
+        cursor: pointer;
+      }
+      .remove:hover { background: var(--button-hover); color: var(--text); }
+      .empty { color: var(--text-3); font-size: 12px; padding: 4px 0; }
+
+      .on-screen { display: flex; align-items: center; gap: 8px; margin-top: 14px; padding: 8px 10px; border-radius: 6px; background: var(--card); border: 1px solid var(--card-border); }
+      .on-screen .row-text { font-weight: 600; }
+      .on-screen .tag { font-size: 12px; }
+      .block-button { border-color: transparent; background: var(--block); color: var(--block-text); font-weight: 600; }
+      .block-button:hover { background: var(--block); filter: brightness(0.9); }
+
+      /* A Windows 11 style on/off switch, like the app's. */
+      .switch { display: flex; align-items: center; gap: 10px; padding: 4px 0; cursor: pointer; }
+      .switch input { position: absolute; opacity: 0; pointer-events: none; }
+      .track {
+        flex: none;
+        position: relative;
+        width: 40px;
+        height: 20px;
+        border-radius: 10px;
+        border: 1px solid var(--field-underline);
+        background: var(--field);
+        transition: background 0.12s;
+      }
+      .track::after {
+        content: "";
+        position: absolute;
+        top: 3px;
+        left: 3px;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: var(--text-2);
+        transition: left 0.12s;
+      }
+      .switch input:checked + .track { background: var(--accent); border-color: var(--accent); }
+      .switch input:checked + .track::after { left: 23px; background: var(--on-accent); }
+      .switch input:focus-visible + .track { outline: 2px solid var(--text); outline-offset: 2px; }
+      .switch input:disabled ~ * { opacity: 0.45; }
+      .switch:has(input:disabled) { cursor: default; }
+      .top .switch { flex: none; font-size: 12.5px; }
+      .rail { margin: 0 0 2px 19px; padding-left: 16px; border-left: 2px solid var(--rail); }
+      /* A parent switch's row: "+" shows its sub-options, "−" hides them. */
+      .toggle-row { display: flex; align-items: center; }
+      .expand {
+        margin-left: auto;
+        width: 26px;
+        height: 26px;
+        border: 0;
+        border-radius: 4px;
+        background: transparent;
+        color: var(--text-2);
+        font-size: 19px;
+        line-height: 1;
+        cursor: pointer;
+      }
+      .expand:hover { background: var(--button-hover); color: var(--text); }
+      .expand:focus-visible { outline: 2px solid var(--text); outline-offset: 1px; }
+    </style>
+  </head>
+  <body>
+    <header class="top">
+      <span class="mark-glow" aria-hidden="true"><span class="mark"></span></span>
+      <div class="titles">
+        <h1>Smart Study Distraction Blocker</h1>
+        <p class="status" id="lock-status" hidden></p>
+      </div>
+      <label class="switch" id="enabled-switch" hidden>
+        <input type="checkbox" id="enabled" />
+        <span class="track"></span>
+        <span id="enabled-label">On</span>
+      </label>
+    </header>
+
+    <!-- The desktop app is installed: it holds every setting. -->
+    <section class="app-view" id="app-view" hidden>
+      <p class="control-from-app">Control from App</p>
+      <p class="app-state"><span class="dot" id="app-dot"></span><span id="app-state">App connected</span></p>
+    </section>
+
+    <!-- No desktop app: the extension's own settings. -->
+    <section id="standalone-view" hidden>
+      <!-- The app's Lock: Extend while locked; the lengths show once it's clicked. -->
+      <div class="break-banner" id="break-banner" hidden>
+        <span id="break-text"></span>
+        <button class="button" type="button" id="cancel-break">Cancel lock break</button>
+      </div>
+      <div class="lock-row" id="lock-row">
+        <button class="button accent" type="button" id="lock-button" aria-expanded="false" aria-controls="lock-times">Lock</button>
+      </div>
+      <div id="lock-times" hidden>
+        <p class="section" id="lock-label">Lock for</p>
+        <!-- 1 hour to 3 days: hour by hour up to a day, then every 6 hours. -->
+        <div id="custom-area">
+          <div class="custom-head">
+            <span class="custom-length" id="custom-length"></span>
+            <button class="button" type="button" id="custom-go">Lock</button>
+          </div>
+          <input type="range" id="custom-slider" min="0" step="1" value="0" aria-label="Lock length" />
+          <div class="scale"><span>1 hour</span><span class="scale-day" id="scale-day">1 day</span><span>3 days</span></div>
+        </div>
+      </div>
+      <p class="off-note" id="off-note" hidden>Switched off: no sites are blocked, and YouTube isn't filtered or decluttered.</p>
+      <p class="off-note" id="locked-note" hidden>During a lock you can only make things stricter: nothing can be removed or switched off until it ends.</p>
+      <button class="button" type="button" id="break-button" hidden>Break lock early</button>
+
+      <div class="on-screen" id="on-screen" hidden>
+        <span class="row-text" id="on-screen-name"></span>
+        <span class="tag" id="on-screen-state" hidden></span>
+        <button class="button block-button" id="on-screen-block" type="button" hidden>Block channel</button>
+      </div>
+
+      <details class="card youtube" id="youtube-card">
+        <summary>
+          YouTube
+          <svg viewBox="0 0 24 17" aria-hidden="true"><rect width="24" height="17" rx="4.5" fill="#ff0000" /><path d="M9.6 4.8v7.4l6.2-3.7z" fill="#fff" /></svg>
+        </summary>
+        <div class="card-body">
+          <h3 class="section">YouTube channels</h3>
+          <form class="add-row" id="channel-form">
+            <input id="channel-input" placeholder="Channel name" autocomplete="off" spellcheck="false" aria-label="Channel name" />
+            <button class="button" type="button" id="allow-channel">Allow</button>
+            <button class="button" type="submit">Block</button>
+          </form>
+          <p class="error" id="channel-error" hidden></p>
+          <ul class="list" id="channels-list"></ul>
+
+          <hr />
+          <h3 class="section">Hide on YouTube</h3>
+          <div id="declutter-list"></div>
+        </div>
+      </details>
+
+      <h2 class="section">
+        Blocked sites
+        <svg viewBox="0 0 16 16" aria-hidden="true" style="color: var(--danger-icon)"><circle cx="8" cy="8" r="6.4" fill="none" stroke="currentColor" stroke-width="1.8" /><path d="M3.6 3.6l8.8 8.8" stroke="currentColor" stroke-width="1.8" /></svg>
+      </h2>
+      <form class="add-row" id="site-form">
+        <input id="site-input" placeholder="example.com" autocomplete="off" spellcheck="false" aria-label="Site to block" />
+        <button class="button" type="submit">Add</button>
+      </form>
+      <p class="error" id="site-error" hidden></p>
+      <details class="card" id="sites-card">
+        <summary id="sites-summary">Show blocked sites</summary>
+        <ul class="list" id="sites-list"></ul>
+      </details>
+
+      <hr />
+      <!-- Asks before a lock, an extension of it, breaking it early or a switch that a lock will hold. -->
+      <div class="confirm" id="confirm" role="dialog" aria-modal="true" aria-labelledby="confirm-text" hidden>
+        <div class="confirm-box">
+          <p id="confirm-text"></p>
+          <p class="confirm-detail" id="confirm-detail"></p>
+          <div class="confirm-buttons">
+            <button class="button accent" type="button" id="confirm-yes">OK</button>
+            <button class="button" type="button" id="confirm-no">Cancel</button>
+          </div>
+        </div>
+      </div>
+      <p class="promo" id="promo">Want to block apps and make locks unlockable while you focus? Download the Smart Study
+        Distraction Blocker app from <span id="ms-store">Microsoft Store</span> or <span id="cws">Chrome Web Store</span>.</p>
+    </section>
+
+    <script src="settings.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>
